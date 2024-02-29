@@ -1,5 +1,5 @@
-﻿Tipo de pase;Numero de pase;bibioteca de primer modulo;Equipo donde aplica;Journal;Comando
-Estandar;PN-000001;BCOCYFILES;CRI400C;No;
-Normal;PN-000002;LIBAYP;CRI400L;No;
-Normal;PN-000003;BCOUSRLIB;CRI400C;No;
-Normal;PN-000004;LIBAYP;CRI400L;No;
+﻿tipo,numero,biblioteca,equipo,journal,comando
+Estandar,PN-000001,BCOCYFILES,CRI400C,No,NA
+Normal,PN-000002,LIBAYP,CRI400L,No,NA
+Normal,PN-000003,BCOUSRLIB,CRI400C,No,NA
+Normal,PN-000004,LIBAYP,CRI400L,No,NA

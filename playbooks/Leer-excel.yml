@@ -1,15 +1,15 @@
 ---
-- name: Leer Archivo de excel
-  host: localhost
-  task:
-    - name: Leer archivo csv
-      csvfile:
-        path: "({ role_path })/archivos/"
-        delimeter: ','
-      register: datos_csv
+- name: Leer archivo CSV en Ansible
+  gather_facts: true
+  hosts: localhost
+  tasks:
+    - name: Leer archivo CSV
+      community.general.read_csv:
+        path: "/Users/manzi/Downloads/ansible-for-i/roles/leer_archivos/archivos/datos.csv"
+      register: datoscsv
 
-    - name: Mostrar contenido del archivo CSV
-      debug:
-      var: datos_csv.rows
-
-      
+    - name: Imprimir
+      ansible.builtin.debug:
+      loop: '{{ datoscsv.list }}'
+      loop_control:
+        loop_var: datoscsv
