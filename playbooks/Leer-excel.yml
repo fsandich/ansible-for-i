@@ -1,0 +1,15 @@
+---
+- name: Leer Archivo de excel
+  host: localhost
+  task:
+    - name: Leer archivo csv
+      csvfile:
+        path: "({ role_path })/archivos/"
+        delimeter: ','
+      register: datos_csv
+
+    - name: Mostrar contenido del archivo CSV
+      debug:
+      var: datos_csv.rows
+
+      
