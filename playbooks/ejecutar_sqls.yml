@@ -1,0 +1,16 @@
+---
+- name: Ejecutar archivos SQL en sistema AS/400
+  hosts: as400_server
+  tasks:
+    - name: Iterar sobre los archivos SQL descargados
+      ansible.builtin.find:
+        paths: "/ruta/local/donde/guardar/"
+        patterns: "*.sql"
+      register: sql_files
+
+    - name: Ejecutar archivos SQL
+      ansible.builtin.shell: "db2 -c 'CALL QSYS2.QCMDEXC(''RUNSQL SQL(''''@{{ item.path }}'''' NAMING(*SYS))'', 500)'"
+      args:
+        executable: /bin/bash
+      with_items: "{{ sql_files.files }}"
+      changed_when: create_table_result.rc

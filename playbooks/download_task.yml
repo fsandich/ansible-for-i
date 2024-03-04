@@ -1,0 +1,17 @@
+- name: Descargar archivo .sql adjunto
+  uri:
+    url: "api de ServiceNow/{{ sys_id }}/file"
+    method: GET
+    headers:
+      Authorization: "Basic {{ encoded_credentials }}"
+    return_content: yes
+    status_code: 200
+  register: download_response
+
+- name: Guardar archivo .sql
+  ansible.builtin.copy:
+    content: "{{ download_response.content }}"
+    dest: "/ruta/local/donde/guardar/{{ item.file_name }}"
+  delegate_to: localhost
+  run_once: yes
+  when: download_response.status == 200 and item.file_name.endswith('.sql')
