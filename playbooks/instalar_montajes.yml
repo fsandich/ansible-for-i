@@ -1,0 +1,11 @@
+---
+hosts: CRI400G
+gather_facts: false
+
+tasks:
+  - name: Instalar planes de montaje
+    ibm.power_ibmi.ibmi_cl_command:
+    cmd: QSYS/CALL P$V1375348/INSTALL
+  - name: Marcar como instalado el modulo
+    ibm.power_ibmi.ibmi_cl_command:
+    cmd: QSYS/CALL PGM(P$CMLIBPRO/P$C418E) PARM(P$V1375348)
