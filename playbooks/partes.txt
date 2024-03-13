@@ -1,0 +1,7 @@
+ - name: Descargar archivos .sql adjuntos desde Servicenow
+  tasks:
+      - name: Iterar sobre los resultados de la consulta
+        ansible.builtin.include_tasks: download_task.yaml
+        loop: "{{ response.json.result }}"
+        loop_control:
+          loop_var: item

@@ -1,0 +1,11 @@
+---
+- name: Ejecutar SQL con archivos descargados
+  gather_facts: false
+  hosts: CRI400G
+  tasks:
+    - name: Ejecutar los .sqls
+      ibm.power_ibmi.ibmi_script_execute:
+        src: '/home/testsql.sql'
+        type: 'SQL'
+        severity_level: 40
+        parameters: 'DATFMT(*USA)'
