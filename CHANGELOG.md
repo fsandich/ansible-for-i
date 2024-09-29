@@ -1,5 +1,121 @@
 # Change Log
 
+## v3.1.0 (2024-07-24)
+
+The collection is verified on Ansible core 2.16 with this release.
+The collection now requires Ansible core levels 2.15 or 2.16 and drops Ansible level 2.14.
+
+Note that the use of Ansible 2.16 requires Python 3.10 or higher on the Ansible
+control node, while IBM i currently only includes python packages
+up to version 3.9. This IBM i limitation requires staying with Ansible 2.15
+if you are using an IBM i control node with the provided IBM i Python packages;
+however, this does not impact IBM i target nodes which may run at lower levels of Python.
+There should be a higher level of Python provided by IBM i later this year that will
+resolve this limitation.
+
+The Redhat AAP collection download image will now exclude some content that relies on
+uncertified collection functionality as detailed below.
+The Ansible Galaxy build image for download will continue to provide the entire collection.
+
+The modifications for this release include:
+
+### Changes for supporting Ansible 2.16 and dropping Ansible 2.14
+
+- Changes to handle deprecated items in tests for Ansible 2.16 such as
+  - Replacing the use of include with include_tasks / import_tasks.
+  - Removing Jinja2 template usage in conditionals.
+
+- Meta file updates to set the minimum Ansible level to 2.15 for the collection
+  because Redhat has recently dropped Ansible 2.14 support.
+
+- Update documentation.
+
+- Adding in minor test fixes or work arounds to resolve test case issues.
+
+- Updating the README with additional sections as required by Redhat.
+
+### Updates to avoid uncertified collections due to Redhat requirements
+
+- Remove reference to uncertified community.general.git_config
+  module and use builtin command instead.
+
+- Generate a separate collection build image for Redhat AAP download that avoids including
+  references to the uncertified collection openstack.cloud by excluding the
+  PowerVC related roles and the CICD use cases that rely on the PowerVC roles.
+
+## v3.0.0 (2024-05-10)
+
+This release includes the final changes to ensure continued compliance with the Redhat certification process.
+This is a disruptive API change with the collection roles that impacts the naming of all the role variables and
+role return variables. All user playbooks using roles must be updated in order to work with this release.
+Each role README file fully documents the new role variable names and the naming convention used is noted below.
+
+The following changes are included with this release:
+
+- Ansible lint clean up for fix management use cases.
+- Clean-up of role variables to use a global naming convention that prepends the role name to each role variable
+  and role return variable.   For example, with the apply_ptf role, the variable "to_be_applied_list"
+  is now "apply_ptf_to_be_applied_list". This convention is followed 99% of the time. This change with roles required
+  updating all the use cases and also the role integration tests.
+- Numerous fixes for the role integration tests along with updating PTFs used in the tests. This is still a work in progress.
+- Various fixes for issues that became apparent with the global role variable naming.
+
+## v2.0.2 (2024-04-24)
+
+This release primarily addresses the fix check breakage from the recent PSP web site updates.
+
+### Bug Fixes
+
+- Fix for github issue 191: <https://github.com/IBM/ansible-for-i/issues/191>
+  - Revise parsing of PSP group PTF web page for recent change that broke the fix check modules.
+  - Future work is needed to properly account for individual PTF dependencies with new web page format
+    along with other lower level information.
+
+- Fix for github issue 194: <https://github.com/IBM/ansible-for-i/issues/194>
+  - Increase timeout for fix check modules from 10 to 60 seconds to account for increased PSP web page access time
+    that was causing false failures in roles that depend on fix check.
+
+- Fix the level 1 fix management module ibmi_fix_repo_lv1
+  - Revise parsing of sha256 file that is used for checksums when generating a new database fix entry for a refresh action.
+    The file format has changed slightly and we were erroneously skipping valid fixes that were using the new format.
+
+## v2.0.1 (2024-03-05)
+
+This release includes a number of fixes along with code clean-up to continue the Redhat certification of the collection.
+
+The plan for the next release is to complete the Redhat certification clean-up by modifying the role variables to follow the convention
+of the role name prepended to the role variable, e.g., the role sync_apply_ptf_group with role variable src_host will rename the role variable to sync_apply_ptf_group_src_host. This future change with role variables will obviously impact user playbooks that utilize the collection roles.
+
+### Bug Fixes
+
+- Fix for github issue 163: <https://github.com/IBM/ansible-for-i/issues/163>
+  - Binary dependency should reference python3 instead of python.
+  - Add collection dependencies in requirements file.
+
+- Fixes for github issue #177 for sync_apply_ptf_group: <https://github.com/IBM/ansible-for-i/issues/177>
+  - Correct role documentation examples for sync_apply_ptf_group and sync_apply_ptf_group_networkinstall for the ptf information.
+  - Fix a bug in sync_apply_ptf_group with incorrect server variable for delegation
+
+- Fix for role sync_apply_individual_ptfs_lv1.
+  - Found a common bug for role sync_apply_individual_ptfs_lv1 as previously found for the role sync_apply_ptf_group in github issue 177.
+
+- Fix for github issue 146. Resolve deprecated warnings: <https://github.com/IBM/ansible-for-i/issues/146>
+  - Remove use of deprecated call _remote_checksum and instead use _execute_remote_stat, which impacts a few modules.
+
+### Code clean-up
+
+- Ansible lint clean up for most of the uses cases
+  - Cleaning up cicd-cli, ibmi_services, and security_management use cases.
+  - Clean up use cases for cicd-tower, towerapi, and db2mirror_setup_via_powervc.
+
+### Documentation
+
+- Fix documentation for various modules (github issue 179): <https://github.com/IBM/ansible-for-i/issues/179>
+  - Correct botched collection name in various module examples that are used in the module documentation.
+
+- Documentation clean up for ibmi_tcp_server_service: <https://github.com/IBM/ansible-for-i/issues/164>
+  - Clarify the example for restarting ssh server with ibmi_tcp_server_service to address github issue 164.
+
 ## v2.0.0 (2023-11-22)
 
 With this release the collection now requires ansible-core version 2.14 or 2.15 on the Ansible server / control node. This also requires having Python 3.9 on the Ansible server / control node. The IBM i target nodes may still run at a lower level of Python 3. These changes are necessary for continued Redhat certification of the collection and also for Ansible Galaxy.
