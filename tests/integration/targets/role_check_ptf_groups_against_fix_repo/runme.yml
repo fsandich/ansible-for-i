@@ -1,8 +1,6 @@
 - name: IBM i check a set of PTFs
   hosts: testhost
   gather_facts: false
-  collections:
-    - ibm.power_ibmi
 
   # Assumes a PTF group that is not in repo DB and also not installed on target(s).
   # This is enforced on target by invoking cleanup.yml below and we will also
@@ -10,10 +8,11 @@
 
   tasks:
     - name: Check for a PTF group not in the repository
-      debug: msg="Case where PTF group is not in repo DB"
+      ansible.builtin.debug:
+        msg: "Case where PTF group is not in repo DB"
 
     - name: Set facts
-      set_fact:
+      ansible.builtin.set_fact:
         group_73: 'SF99722'
         group_72: 'SF99713'
         group_74: 'SF99667'
@@ -21,68 +20,71 @@
         not_installed_ptfs_73: ['SI59997', 'SI71027', 'SI60530']
         not_installed_ptfs_74: ['SI71027']
 
-        to_be_deleted_ptfs_72: 
+        to_be_deleted_ptfs_72:
           - {'ptf_id': 'SI73530', 'product': '5770SS1'}
           - {'ptf_id': 'SI73394', 'product': '5770DG1'}
 
-        to_be_deleted_ptfs_73: 
+        to_be_deleted_ptfs_73:
           - {'ptf_id': 'SI73529', 'product': '5770SS1'}
           - {'ptf_id': 'SI73122', 'product': '5770DG1'}
 
-        to_be_deleted_ptfs_74: 
+        to_be_deleted_ptfs_74:
           - {'ptf_id': 'SI73528', 'product': '5770SS1'}
           - {'ptf_id': 'SI73395', 'product': '5770DG1'}
 
-    - name: query the os version of target IBM i
-      ibmi_sql_query:
+    - name: Query the os version of target IBM i
+      ibm.power_ibmi.ibmi_sql_query:
         sql: 'SELECT OS_VERSION, OS_RELEASE FROM SYSIBMADM.ENV_SYS_INFO;'
       register: sql_query
 
-    - name: set the ptf group to be used
-      set_fact:
+    - name: Set the ptf group to be used
+      ansible.builtin.set_fact:
         group_name: "{{ lookup('vars', 'group_' + sql_query['row'][0]['OS_VERSION'] + sql_query['row'][0]['OS_RELEASE']) }}"
         not_installed_ptfs: "{{ lookup('vars', 'not_installed_ptfs_' + sql_query['row'][0]['OS_VERSION'] + sql_query['row'][0]['OS_RELEASE']) }}"
         to_be_deleted_ptfs: "{{ lookup('vars', 'to_be_deleted_ptfs_' + sql_query['row'][0]['OS_VERSION'] + sql_query['row'][0]['OS_RELEASE']) }}"
 
     - name: Run module to check the latest level
-      ibmi_fix_group_check:
+      ibm.power_ibmi.ibmi_fix_group_check:
         groups: '{{group_name}}'
       register: group_check_result
 
     - name: Add VM to Ansible in-memory inventory
-      add_host:
+      ansible.builtin.add_host:
         name: "repo_server_name"
         ansible_ssh_host: ut2026p8.rch.stglabs.ibm.com
-        ansible_user: tester 
+        ansible_user: tester
         groups: ibmi
         ansible_ssh_extra_args: -o StrictHostKeyChecking=no
         ansible_python_interpreter: /QOpensys/pkgs/bin/python3
 
-    - ansible.builtin.include_tasks: cleanup.yml 
+    - name: Include tasks
+      ansible.builtin.include_tasks: cleanup.yml
 
     - name: Delete ptf_group entry in fix repo if it already exists
-      ibmi_fix_repo:
+      ibm.power_ibmi.ibmi_fix_repo:
         checksum: false
         action: "delete"
         type: 'ptf_group'
         parameters:
-        - { 'ptf_group_number': '{{ group_name }}' }
+          - { 'ptf_group_number': '{{ group_name }}' }
       delegate_to: "repo_server_name"
 
     # At that moment, the repo doesn't have the ptf group and IBM i nodes don't have it.
-    - name: compare ptf group with latest
-      include_role:
+    - name: Compare ptf group with latest
+      ansible.builtin.include_role:
         name: check_ptf_groups_against_fix_repo
       vars:
         check_ptf_groups_against_fix_repo_group_list:
           - "{{group_name}}"
         check_ptf_groups_against_fix_repo_type: "latest"
         check_ptf_groups_against_fix_repo_repo_server: "repo_server_name"
-    
-    - debug: var=check_ptf_groups_against_fix_repo_group_status
 
-    - name: assert the returned group_status
-      assert:
+    - name: Display status
+      ansible.builtin.debug:
+        var: check_ptf_groups_against_fix_repo_group_status
+
+    - name: Assert the returned group_status
+      ansible.builtin.assert:
         that:
           - check_ptf_groups_against_fix_repo_group_status is defined
           - check_ptf_groups_against_fix_repo_group_status | length == 1
@@ -91,19 +93,21 @@
           - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'Record not found in repository DB'
           - check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] is not defined
 
-    - name: compare ptf group with current
-      include_role:
+    - name: Compare ptf group with current
+      ansible.builtin.include_role:
         name: check_ptf_groups_against_fix_repo
-      vars: 
+      vars:
         check_ptf_groups_against_fix_repo_group_list:
           - "{{group_name}}"
         check_ptf_groups_against_fix_repo_type: "current"
         check_ptf_groups_against_fix_repo_repo_server: "repo_server_name"
 
-    - debug: var=check_ptf_groups_against_fix_repo_group_status
+    - name: Display group status
+      ansible.builtin.debug:
+        var: check_ptf_groups_against_fix_repo_group_status
 
-    - name: assert the returned group_status
-      assert:
+    - name: Assert the returned group_status
+      ansible.builtin.assert:
         that:
           - check_ptf_groups_against_fix_repo_group_status is defined
           - check_ptf_groups_against_fix_repo_group_status | length == 1
@@ -112,41 +116,42 @@
 - name: IBM i check a set of PTFs
   hosts: "repo_server_name"
   gather_facts: false
-  collections:
-    - ibm.power_ibmi
 
   # Pick out a small group PTF for the test so it won't take as long
   tasks:
     - name: Case where PTF group is not in repo DB and not on target node
-      debug: msg="Case where PTF group is not in repo DB and not on target node"
+      ansible.builtin.debug:
+        msg: "Case where PTF group is not in repo DB and not on target node"
 
     - name: Set PTF groups
-      set_fact:
+      ansible.builtin.set_fact:
         group_73: 'SF99722'
         group_72: 'SF99713'
         group_74: 'SF99667'
 
     # Note that we are delegating to testhost, which should be a single host / alias in the inventory file
-    - name: query the os version of target IBM i
-      ibmi_sql_query:
+    - name: Query the os version of target IBM i
+      ibm.power_ibmi.ibmi_sql_query:
         sql: 'SELECT OS_VERSION, OS_RELEASE FROM SYSIBMADM.ENV_SYS_INFO;'
       register: sql_query
       delegate_to: testhost
 
-    - name: set the ptf group to be used
-      set_fact:
+    - name: Set the ptf group to be used
+      ansible.builtin.set_fact:
         group_name: "{{ lookup('vars', 'group_' + sql_query['row'][0]['OS_VERSION'] + sql_query['row'][0]['OS_RELEASE']) }}"
 
-    - name: check and download ptf group into role 
-      include_role:
+    - name: Check and download ptf group into role
+      ansible.builtin.include_role:
         name: fix_repo_check_ptf_group
       vars:
         fix_repo_check_ptf_group_ptf_group: "{{group_name}}"
 
-    - debug: var=fix_repo_check_ptf_group_fix_group_check_result
+    - name: Display check result
+      ansible.builtin.debug:
+        var: fix_repo_check_ptf_group_fix_group_check_result
 
-    - name: assert the returned value of the fix_repo_check_ptf_group
-      assert:
+    - name: Assert the returned value of the fix_repo_check_ptf_group
+      ansible.builtin.assert:
         that:
           - fix_repo_check_ptf_group_fix_group_check_result is defined
           - fix_repo_check_ptf_group_check_ptf_group_fail is defined
@@ -154,36 +159,38 @@
           - fix_repo_check_ptf_group_fix_group_check_result.group_info[0].ptf_group_number == group_name
           - fix_repo_check_ptf_group_fix_group_check_result.group_info[0].ptf_group_level is defined
           - fix_repo_check_ptf_group_fix_group_check_result.group_info[0].description is defined
-          #- fix_repo_check_ptf_group_fix_group_check_result.group_info[0].ptf_list | length > 1
+          # - fix_repo_check_ptf_group_fix_group_check_result.group_info[0].ptf_list | length > 1
           - fix_repo_check_ptf_group_ptf_group_find_result is defined
           - fix_repo_check_ptf_group_ptf_group_find_result.fail_list | length == 1
-          - fix_repo_check_ptf_group_ptf_group_find_result.fail_list[0].db_record == 'RECORD_NOT_FOUND' 
+          - fix_repo_check_ptf_group_ptf_group_find_result.fail_list[0].db_record == 'RECORD_NOT_FOUND'
           - fix_repo_check_ptf_group_check_ptf_group_fail == false
           - fix_repo_check_ptf_group_download_status_find_result is defined
 
     ### Download PTF group to fix repo
-    - name: download ptf group to fix repo and add part of group information into fix repo catalog
-      include_role:
+    - name: Download ptf group to fix repo and add part of group information into fix repo catalog
+      ansible.builtin.include_role:
         name: fix_repo_download_add_ptf_group
       vars:
         fix_repo_download_add_ptf_group_ptf_group_info: "{{fix_repo_check_ptf_group_fix_group_check_result.group_info[0]}}"
 
-    - name: assert returned value of the above role
-      assert:
+    - name: Assert returned value of the above role
+      ansible.builtin.assert:
         that:
           - fix_repo_download_add_ptf_group_download_fix_result is defined
           - fix_repo_download_add_ptf_group_download_status_add_result is defined
 
-    - name: check if ptf group exists on repo
-      include_role:
+    - name: Check if ptf group exists on repo
+      ansible.builtin.include_role:
         name: fix_repo_check_ptf_group
       vars:
         fix_repo_check_ptf_group_ptf_group: "{{group_name}}"
 
-    - debug: var=fix_repo_check_ptf_group_fix_group_check_result
+    - name: Display group check result
+      ansible.builtin.debug:
+        var: fix_repo_check_ptf_group_fix_group_check_result
 
-    - name: assert the returned value of the fix_repo_check_ptf_group
-      assert:
+    - name: Assert the returned value of the fix_repo_check_ptf_group
+      ansible.builtin.assert:
         that:
           - fix_repo_check_ptf_group_fix_group_check_result is defined
           - fix_repo_check_ptf_group_check_ptf_group_fail is defined
@@ -191,41 +198,43 @@
           - fix_repo_check_ptf_group_fix_group_check_result.group_info[0].ptf_group_number == group_name
           - fix_repo_check_ptf_group_fix_group_check_result.group_info[0].ptf_group_level is defined
           - fix_repo_check_ptf_group_fix_group_check_result.group_info[0].description is defined
-          #- fix_repo_check_ptf_group_fix_group_check_result.group_info[0].ptf_list | length > 1
+          # - fix_repo_check_ptf_group_fix_group_check_result.group_info[0].ptf_list | length > 1
           - fix_repo_check_ptf_group_check_ptf_group_fail == false
           - fix_repo_check_ptf_group_download_status_find_result is defined
 
-    - name: use ibmi_download_fix_status to determine if the downloading is completed.
-      ibmi_download_fix_status:
+    - name: Use ibmi_download_fix_status to determine if the downloading is completed.
+      ibm.power_ibmi.ibmi_download_fix_status:
         order_list: "{{fix_repo_download_add_ptf_group_download_fix_result.order_id}}"
-      register: ds     
+      register: ds
       failed_when: ds.rc != 0
       until: ds.status[0]['download_status'] == "DOWNLOADED"
       retries: 100
       delay: 30
 
-    - name: extra info from text 
-      include_role: 
+    - name: Extra info from text
+      ansible.builtin.include_role:
         name: fix_repo_extract_ptf_group_info
       vars:
         fix_repo_extract_ptf_group_info_order_id: "{{fix_repo_download_add_ptf_group_download_fix_result.order_id}}"
 
-    - name: assert the info has been added to fix repo
-      assert:
+    - name: Assert the info has been added to fix repo
+      ansible.builtin.assert:
         that:
           - fix_repo_extract_ptf_group_info_fix_repo_find_result is defined
           - fix_repo_extract_ptf_group_info_fix_repo_update_result is defined
 
-    - name: check if ptf group exists on repo
-      include_role:
+    - name: Check if ptf group exists on repo
+      ansible.builtin.include_role:
         name: fix_repo_check_ptf_group
       vars:
         fix_repo_check_ptf_group_ptf_group: "{{group_name}}"
 
-    - debug: var=fix_repo_check_ptf_group_fix_group_check_result
+    - name: Display group check result
+      ansible.builtin.debug:
+        var: fix_repo_check_ptf_group_fix_group_check_result
 
-    - name: assert the returned value of the fix_repo_check_ptf_group
-      assert:
+    - name: Assert the returned value of the fix_repo_check_ptf_group
+      ansible.builtin.assert:
         that:
           - fix_repo_check_ptf_group_fix_group_check_result is defined
           - fix_repo_check_ptf_group_check_ptf_group_fail is defined
@@ -233,14 +242,14 @@
           - fix_repo_check_ptf_group_fix_group_check_result.group_info[0].ptf_group_number == group_name
           - fix_repo_check_ptf_group_fix_group_check_result.group_info[0].ptf_group_level is defined
           - fix_repo_check_ptf_group_fix_group_check_result.group_info[0].description is defined
-          #- fix_repo_check_ptf_group_fix_group_check_result.group_info[0].ptf_list | length > 1
+          # - fix_repo_check_ptf_group_fix_group_check_result.group_info[0].ptf_list | length > 1
           - fix_repo_check_ptf_group_ptf_group_find_result.fail_list is not defined
           - fix_repo_check_ptf_group_ptf_group_find_result.success_list[0].db_record == 'MATCH'
           - fix_repo_check_ptf_group_check_ptf_group_fail == false
           - fix_repo_check_ptf_group_download_status_find_result is defined
 
-    - name: add information
-      ibmi_fix_repo:
+    - name: Add information
+      ibm.power_ibmi.ibmi_fix_repo:
         type: "ptf_group"
         action: "add"
         checksum: false
@@ -256,120 +265,129 @@
 - name: IBM i check a set of PTFs
   hosts: testhost
   gather_facts: false
-  collections:
-    - ibm.power_ibmi
   tasks:
 
     # Now PTF Group exists on fix repo but not on remote IBM i
     - name: Case where PTF group is in repo DB and not on target node
-      debug: msg="Case where PTF group is in repo DB and not on target node"
+      ansible.builtin.debug:
+        msg: "Case where PTF group is in repo DB and not on target node"
 
-    - name: compare ptf group with latest
-      include_role:
+    - name: Compare ptf group with latest
+      ansible.builtin.include_role:
         name: check_ptf_groups_against_fix_repo
-      vars: 
+      vars:
         check_ptf_groups_against_fix_repo_group_list:
           - "{{group_name}}"
         check_ptf_groups_against_fix_repo_type: "latest"
         check_ptf_groups_against_fix_repo_repo_server: "repo_server_name"
-    
-    - debug: var=check_ptf_groups_against_fix_repo_group_status
 
-    - name: assert the returned group_status
-      assert:
+    - name: Display status
+      ansible.builtin.debug:
+        var: check_ptf_groups_against_fix_repo_group_status
+
+    - name: Assert the returned group_status
+      ansible.builtin.assert:
         that:
           - check_ptf_groups_against_fix_repo_group_status | length == 1
-          #- check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_NUMBER'] == group_name
-          #- check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'NON-EXISTENT'  
+          # - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_NUMBER'] == group_name
+          # - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'NON-EXISTENT'
 
-    - name: compare ptf group with current
-      include_role:
+    - name: Compare ptf group with current
+      ansible.builtin.include_role:
         name: check_ptf_groups_against_fix_repo
-      vars: 
+      vars:
         check_ptf_groups_against_fix_repo_group_list:
           - "{{group_name}}"
         check_ptf_groups_against_fix_repo_type: "current"
         check_ptf_groups_against_fix_repo_repo_server: "repo_server_name"
-    
-    - debug: var=check_ptf_groups_against_fix_repo_group_status
 
-    - name: assert the returned group_status
-      assert:
+    - name: Display status
+      ansible.builtin.debug:
+        var: check_ptf_groups_against_fix_repo_group_status
+
+    - name: Assert the returned group_status
+      ansible.builtin.assert:
         that:
           - check_ptf_groups_against_fix_repo_group_status | length == 1
-          #- check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_NUMBER'] == group_name
+          # - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_NUMBER'] == group_name
           - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'NON-EXISTENT'
 
-    - set_fact:
+    - name: Set group level
+      ansible.builtin.set_fact:
         group_level: "{{ group_check_result.group_info[0]['ptf_group_level'] | int }}"
 
     - name: Get the PTF group information in catalog
-      ibmi_fix_repo:
+      ibm.power_ibmi.ibmi_fix_repo:
         type: "ptf_group"
-        checksum: false 
+        checksum: false
         action: "find"
         parameters:
           - {'ptf_group_number': "{{group_name}}" }
       delegate_to: "repo_server_name"
       register: fix_repo_find_result
 
-    - name: include role to sync and apply ptf group
-      include_role:
+    - name: Include role to sync and apply ptf group
+      ansible.builtin.include_role:
         name: sync_apply_ptf_group
       vars:
         sync_apply_ptf_group_ptf_group_info: "{{ fix_repo_find_result.success_list[0] }}"
         sync_apply_ptf_group_src_host: "repo_server_name"
 
-    - name: assert the returned values of above role
-      assert:
-        that: 
+    - name: Assert the returned values of above role
+      ansible.builtin.assert:
+        that:
           - sync_apply_ptf_group_sync_result is defined
           - sync_apply_ptf_group_apply_result.failed == false
           - sync_apply_ptf_group_sync_apply_fail == false
 
     # - name: sync and apploy ptf group to ibmi
-    #   include: sync_apply_ptf_group.yml
+    #   include_tasks: sync_apply_ptf_group.yml
     #   vars:
     #     ptf_group: {'ptf_group_number': '{{group_name}}', 'ptf_group_level': "{{group_check_result.group_info[0]['ptf_group_level']}}" }
     #     dest: "files/"
     #     repo_server: "repo_server_name"
- 
+
     ### Now PTF Group exists on fix repo and remote IBM i
     - name: Case where PTF group is in repo DB and on target node
-      debug: msg="Case where PTF group is in repo DB and on target node"
+      ansible.builtin.debug:
+        msg: "Case where PTF group is in repo DB and on target node"
 
-    - name: compare ptf group with latest
-      include_role:
+    - name: Compare ptf group with latest
+      ansible.builtin.include_role:
         name: check_ptf_groups_against_fix_repo
-      vars: 
+      vars:
         check_ptf_groups_against_fix_repo_group_list:
           - "{{group_name}}"
         check_ptf_groups_against_fix_repo_type: "latest"
         check_ptf_groups_against_fix_repo_repo_server: "repo_server_name"
-    
-    - debug: var=check_ptf_groups_against_fix_repo_group_status
 
-    - name: assert the returned group_status
-      assert:
+    - name: Display group status
+      ansible.builtin.debug:
+        var: check_ptf_groups_against_fix_repo_group_status
+
+    - name: Assert the returned group_status
+      ansible.builtin.assert:
         that:
           - check_ptf_groups_against_fix_repo_group_status | length == 1
           - check_ptf_groups_against_fix_repo_group_status[0]['LATEST_PTF_GROUP_LEVEL'] == group_check_result.group_info[0]["ptf_group_level"]
           - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_NUMBER'] == group_name
           - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'NOT INSTALLED' or
               check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'APPLY AT NEXT IPL'
-          #- check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] | length >= not_installed_ptfs | length
-          #- not_installed_ptfs in check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED']
+          # - check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] | length >= not_installed_ptfs | length
+          # - not_installed_ptfs in check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED']
 
-    - name: compare ptf group with current
-      include_role:
+    - name: Compare ptf group with current
+      ansible.builtin.include_role:
         name: check_ptf_groups_against_fix_repo
-      vars: 
+      vars:
         check_ptf_groups_against_fix_repo_group_list:
           - "{{group_name}}"
         check_ptf_groups_against_fix_repo_type: "current"
         check_ptf_groups_against_fix_repo_repo_server: "repo_server_name"
-    
-    - debug: var=check_ptf_groups_against_fix_repo_group_status
+
+    - name: Display group status
+      ansible.builtin.debug:
+        var: check_ptf_groups_against_fix_repo_group_status
 
     # TODO: follow up on this with SF99667 for V7R4, which requires an IPL for application, so group status is empty
 #    - name: assert the returned group_status
@@ -385,56 +403,56 @@
 
     # TODO: Revisit the following with updated PTFs from the group; skip this for now
 #    - name: remove some ptfs within the group
-#      include: query_remove_ptf.yml
+#      include_tasks: query_remove_ptf.yml
 #      loop: '{{to_be_deleted_ptfs}}'
 
     # - name: compare ptf group with latest
 #    - name: compare ptf group with latest
 #      include_role:
 #        name: check_ptf_groups_against_fix_repo
-#      vars: 
+#      vars:
 #       check_ptf_groups_against_fix_repo_group_list:
 #          - "{{group_name}}"
 #        check_ptf_groups_against_fix_repo_type: "latest"
 #        check_ptf_groups_against_fix_repo_repo_server: "repo_server_name"
-    
+
 #    - name: assert the returned group_status
 #      assert:
 #        that:
 #          - check_ptf_groups_against_fix_repo_group_status | length == 1
 #          - check_ptf_groups_against_fix_repo_group_status[0]['LATEST_PTF_GROUP_LEVEL'] == group_check_result.group_info[0]["ptf_group_level"]
 #          - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_NUMBER'] == group_name
-#          - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'NOT INSTALLED'  
-#          - check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] | length >= not_installed_ptfs | length 
-#          - not_installed_ptfs in check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] 
+#          - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'NOT INSTALLED'
+#          - check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] | length >= not_installed_ptfs | length
+#          - not_installed_ptfs in check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED']
 
 #    - name: compare ptf group with latest
 #      include_role:
 #        name: check_ptf_groups_against_fix_repo
-#      vars: 
+#      vars:
 #        check_ptf_groups_against_fix_repo_group_list:
 #          - "{{group_name}}"
 #        check_ptf_groups_against_fix_repo_type: "current"
 #        check_ptf_groups_against_fix_repo_repo_server: "repo_server_name"
-    
+
 #    - name: assert the returned group_status
 #      assert:
 #        that:
 #          - check_ptf_groups_against_fix_repo_group_status | length == 1
 #          - check_ptf_groups_against_fix_repo_group_status[0]['LATEST_PTF_GROUP_LEVEL'] is not defined
 #          - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_NUMBER'] == group_name
-#          - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'NOT INSTALLED' or check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'INSTALLED'
-#          - check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] | length >= not_installed_ptfs | length 
+#          - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'NOT INSTALLED' or
+#            check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'INSTALLED'
+#          - check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] | length >= not_installed_ptfs | length
 
 #    - name: verify the deleted ptfs and no_installed_ptfs are listed in the PTF_NOT_INSTALLED
 #      assert:
 #        that:
-#          - item in check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] | map(attribute='PTF_IDENTIFIER') | join('') 
+#          - item in check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] | map(attribute='PTF_IDENTIFIER') | join('')
 
 - name: Negative test cases
   hosts: testhost
   gather_facts: false
-  collections:
-    - ibm.power_ibmi
-  tasks:    
-    - ansible.builtin.include_tasks: neg_case.yml
+  tasks:
+    - name: Include task
+      ansible.builtin.include_tasks: neg_case.yml

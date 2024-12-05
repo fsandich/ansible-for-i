@@ -1,8 +1,6 @@
 - name: IBM i check a set of PTFs
   hosts: testhost
   gather_facts: false
-  collections:
-    - ibm.power_ibmi
 
   vars:
     individual_ptfs_74:
@@ -14,57 +12,63 @@
       - {'ptf_id':'SI74270', 'product':'5770SS1'}
     individual_ptfs_72:
       - {'ptf_id':'SI69149', 'product':'5770SS1'} # It is a requisite ptf of SI74593
-      - {'ptf_id':'SI74593', 'product':'5770SS1'}      
+      - {'ptf_id':'SI74593', 'product':'5770SS1'}
 
-  tasks:      
-    - name: query the os version of target IBM i
-      ibmi_sql_query:
+  tasks:
+    - name: Query the os version of target IBM i
+      ibm.power_ibmi.ibmi_sql_query:
         sql: 'SELECT OS_VERSION, OS_RELEASE FROM SYSIBMADM.ENV_SYS_INFO;'
       register: sql_query
 
-    - set_fact:
+    - name: Set individual_ptfs
+      ansible.builtin.set_fact:
         individual_ptfs: "{{ lookup('vars', 'individual_ptfs_' + sql_query['row'][0]['OS_VERSION'] + sql_query['row'][0]['OS_RELEASE']) }}"
 
     # Clean up PTFs on target if applied already
-    - include: query_remove_ptf.yml
+    - name: Include task
+      ansible.builtin.include_tasks: query_remove_ptf.yml
       loop: '{{[]+ [individual_ptfs[1]]}}'
 
-    - include: query_remove_ptf.yml
+    - name: Include task
+      ansible.builtin.include_tasks: query_remove_ptf.yml
       loop: '{{[]+ [individual_ptfs[0]]}}'
 
     - name: Add VM to Ansible in-memory inventory
-      add_host:
+      ansible.builtin.add_host:
         name: "repo_server_name"
         ansible_ssh_host: ut2026p8.rch.stglabs.ibm.com
-        ansible_user: tester 
+        ansible_user: tester
         groups: ibmi
         ansible_ssh_extra_args: -o StrictHostKeyChecking=no
         ansible_python_interpreter: /QOpensys/pkgs/bin/python3
 
-    - name: negative test
-      include: neg_case.yml 
-  
-    - include_role: 
+    - name: Negative test
+      ansible.builtin.include_tasks: neg_case.yml
+
+    - name: Include role
+      ansible.builtin.include_role:
         name: check_ptfs_by_product_against_fix_repo
       vars:
         check_ptfs_by_product_against_fix_repo_product: "5770SS1"
         check_ptfs_by_product_against_fix_repo_repo_server: "repo_server_name"
 
-    - debug: var=check_ptfs_by_product_against_fix_repo_ptf_status
+    - name: Display ptf status
+      ansible.builtin.debug:
+        var: check_ptfs_by_product_against_fix_repo_ptf_status
 
-    - name: assert returned values
-      assert:
+    - name: Assert returned values
+      ansible.builtin.assert:
         that:
           - check_ptfs_by_product_against_fix_repo_ptf_status is defined
           - check_ptfs_by_product_against_fix_repo_ptf_status[0].PRODUCT == "5770SS1"
           - check_ptfs_by_product_against_fix_repo_ptf_status[0].PRODUCT_STATUS is defined
           # Remove assumption that we have repo populated with 2+ PTFs
-          #- check_ptfs_by_product_against_fix_repo_ptf_status[0].PTF_LIST | length >= 2
+          # - check_ptfs_by_product_against_fix_repo_ptf_status[0].PTF_LIST | length >= 2
 
-    #- name: assert returned values from check_ptfs_by_product_against_fix_repo
+    # - name: assert returned values from check_ptfs_by_product_against_fix_repo
     #  assert:
     #    that:
-    #      - item.1.PTF_LOADED_STATUS == 'PERMANENTLY REMOVED' 
+    #      - item.1.PTF_LOADED_STATUS == 'PERMANENTLY REMOVED'
     #  when:  item.0.ptf_id == item.1.PTF_IDENTIFIER
     #  loop: "{{individual_ptfs | check_ptfs_by_product_against_fix_repo_product(check_ptfs_by_product_against_fix_repo_ptf_status[0].PTF_LIST) | list}}"
 
@@ -72,8 +76,6 @@
 - name: IBM i check a set of PTFs
   hosts: repo_server_name
   gather_facts: false
-  collections:
-    - ibm.power_ibmi
   vars:
     individual_ptfs_74:
       - {'ptf_id':'SI86026', 'product':'5770SS1'}
@@ -83,21 +85,24 @@
       - {'ptf_id':'SI74270', 'product':'5770SS1'}
     individual_ptfs_72:
       - {'ptf_id':'SI69149', 'product':'5770SS1'} # It is a requisite ptf of SI74593
-      - {'ptf_id':'SI74593', 'product':'5770SS1'}   
+      - {'ptf_id':'SI74593', 'product':'5770SS1'}
 
   tasks:
-    - name: query the os version of target IBM i
-      ibmi_sql_query:
+    - name: Query the os version of target IBM i
+      ibm.power_ibmi.ibmi_sql_query:
         sql: 'SELECT OS_VERSION, OS_RELEASE FROM SYSIBMADM.ENV_SYS_INFO;'
-      register: sql_query  
-    #- name: delete the ptfs from repo if it does exist
-    - set_fact:
-        individual_ptfs: "{{ lookup('vars', 'individual_ptfs_' + sql_query['row'][0]['OS_VERSION'] + sql_query['row'][0]['OS_RELEASE']) }}" 
+      register: sql_query
+    # - name: delete the ptfs from repo if it does exist
+    - name: Set individual_ptfs
+      ansible.builtin.set_fact:
+        individual_ptfs: "{{ lookup('vars', 'individual_ptfs_' + sql_query['row'][0]['OS_VERSION'] + sql_query['row'][0]['OS_RELEASE']) }}"
 
-    - debug: var=individual_ptfs
+    - name: Display individual_ptfs
+      ansible.builtin.debug:
+        var: individual_ptfs
 
     - name: Remove the PTF entries on the repo server, if present, to allow new PTF download
-      ibmi_cl_command:
+      ibm.power_ibmi.ibmi_cl_command:
         cmd: DLTPTF "{{ ptf_record_var.ptf_id }}"
       register: delete_result
       ignore_errors: true
@@ -107,20 +112,21 @@
 
     # TODO: We should also remove PTF entries from repo server DB, if present, to clear the slate
 
-    - include_role:
+    - name: Include role
+      ansible.builtin.include_role:
         name: download_individual_ptfs
       vars:
         download_individual_ptfs_to_be_downloaded_list: '{{individual_ptfs}}'
         download_individual_ptfs_download_server: "repo_server_name"
 
-    - name: assert returned values from download_individual_ptfs
-      assert:
+    - name: Assert returned values from download_individual_ptfs
+      ansible.builtin.assert:
         that:
           - download_individual_ptfs_download_success_list is defined
           - download_individual_ptfs_download_fail_list is defined
 
     - name: Add individual ptf record into catalog
-      ibmi_fix_repo:
+      ibm.power_ibmi.ibmi_fix_repo:
         type: "single_ptf"
         action: "add"
         checksum: true
@@ -131,8 +137,6 @@
 - name: IBM i check a set of PTFs
   hosts: testhost
   gather_facts: false
-  collections:
-    - ibm.power_ibmi
 
   vars:
     individual_ptfs_74:
@@ -143,20 +147,23 @@
       - {'ptf_id':'SI74270', 'product':'5770SS1'}
     individual_ptfs_72:
       - {'ptf_id':'SI69149', 'product':'5770SS1'} # It is a requisite ptf of SI74593
-      - {'ptf_id':'SI74593', 'product':'5770SS1'}  
+      - {'ptf_id':'SI74593', 'product':'5770SS1'}
 
   tasks:
-    - name: query the os version of target IBM i
-      ibmi_sql_query:
+    - name: Query the os version of target IBM i
+      ibm.power_ibmi.ibmi_sql_query:
         sql: 'SELECT OS_VERSION, OS_RELEASE FROM SYSIBMADM.ENV_SYS_INFO;'
-      register: sql_query  
-    - set_fact:
-        individual_ptfs: "{{ lookup('vars', 'individual_ptfs_' + sql_query['row'][0]['OS_VERSION'] + sql_query['row'][0]['OS_RELEASE']) }}" 
+      register: sql_query
+    - name: Set individual_ptfs
+      ansible.builtin.set_fact:
+        individual_ptfs: "{{ lookup('vars', 'individual_ptfs_' + sql_query['row'][0]['OS_VERSION'] + sql_query['row'][0]['OS_RELEASE']) }}"
 
-    - debug: var=individual_ptfs
+    - name: Display individual_ptfs
+      ansible.builtin.debug:
+        var: individual_ptfs
 
     - name: Get the individual ptfs' information in catalog
-      ibmi_fix_repo:
+      ibm.power_ibmi.ibmi_fix_repo:
         type: "single_ptf"
         checksum: true
         action: "find"
@@ -164,10 +171,11 @@
       delegate_to: "repo_server_name"
       register: fix_repo_find_result
 
-    - include_role:
+    - name: Include check_ptf role
+      ansible.builtin.include_role:
         name: 'check_ptf'
       vars:
-        check_ptf_list:  "{{ fix_repo_find_result.success_list }}"
+        check_ptf_list: "{{ fix_repo_find_result.success_list }}"
 
     - name: Assert defined return parameters for check_ptf_list
       ansible.builtin.assert:
@@ -180,7 +188,7 @@
           - check_ptf_temporarily_applied_list is defined
 
     - name: Include sync_apply_individual_ptfs role to transfer a list of individual ptfs to target ibm i, then load and apply
-      include_role:
+      ansible.builtin.include_role:
         name: sync_apply_individual_ptfs
       vars:
         sync_apply_individual_ptfs_not_loaded_list: "{{ check_ptf_not_loaded_ptfs_list }}"
@@ -203,7 +211,8 @@
           - sync_apply_individual_ptfs_apply_success_list is defined
           - sync_apply_individual_ptfs_apply_fail_list is defined
 
-    - include_role: 
+    - name: Include apply_ptf role
+      ansible.builtin.include_role:
         name: apply_ptf
       vars:
         apply_ptf_to_be_applied_list: "{{individual_ptfs}}"
@@ -216,7 +225,8 @@
           - apply_ptf_apply_fail_dict is defined
           - apply_ptf_requisite_list is defined
 
-    - include_role: 
+    - name: Include check role
+      ansible.builtin.include_role:
         name: check_ptfs_by_product_against_fix_repo
       vars:
         check_ptfs_by_product_against_fix_repo_product: "5770SS1"
@@ -227,15 +237,18 @@
         that:
           - check_ptfs_by_product_against_fix_repo_ptf_status is defined
 
-    - debug: var=check_ptfs_by_product_against_fix_repo_ptf_status
+    - name: Display ptf status
+      ansible.builtin.debug:
+        var: check_ptfs_by_product_against_fix_repo_ptf_status
 
-    - name: assert returned values
-      assert:
+    - name: Assert returned values
+      ansible.builtin.assert:
         that:
           - item.1.PTF_LOADED_STATUS == 'APPLIED'
-      when:  item.0.ptf_id == item.1.PTF_IDENTIFIER
+      when: item.0.ptf_id == item.1.PTF_IDENTIFIER
       loop: "{{individual_ptfs | product(check_ptfs_by_product_against_fix_repo_ptf_status[0].PTF_LIST) | list}}"
 
     # Clean up PTFs on target
-    - include: query_remove_ptf.yml
+    - name: Include task
+      ansible.builtin.include_tasks: query_remove_ptf.yml
       loop: '{{ individual_ptfs }}'

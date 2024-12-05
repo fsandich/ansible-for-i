@@ -92,6 +92,11 @@ options:
          specified will be associated with the image catalog.
      type: str
      default: '*DFT'
+  image_catalog:
+     description:
+       - Specifies the image catalog to create based on the PTFs ordered.
+     type: str
+     default: '*NONE'
   time_out:
      description:
        - The max time that the module waits for the SNDPTFORD command complete.
@@ -280,7 +285,7 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ibm.power_ibmi.plugins.module_utils.ibmi import ibmi_util
 from ansible_collections.ibm.power_ibmi.plugins.module_utils.ibmi import db2i_tools
 from ansible_collections.ibm.power_ibmi.plugins.module_utils.ibmi import ibmi_module as imodule
-__ibmi_module_version__ = "3.1.0"
+__ibmi_module_version__ = "3.2.0"
 
 HAS_ITOOLKIT = True
 
@@ -371,6 +376,7 @@ def main():
             reorder=dict(type='str', default='*YES', choices=['*NO', '*YES']),
             check_PTF=dict(type='str', default='*NO', choices=['*NO', '*YES']),
             image_directory=dict(type='str', default='*DFT'),
+            image_catalog=dict(type='str', default='*NONE'),
             joblog=dict(type='bool', default=False),
             parameters=dict(type='str', default=' '),
             time_out=dict(type='str', default='15m'),
@@ -391,6 +397,7 @@ def main():
     reorder = module.params['reorder']
     check_PTF = module.params['check_PTF']
     image_directory = module.params['image_directory']
+    image_catalog = module.params['image_catalog']
     joblog = module.params['joblog']
     parameters = module.params['parameters']
     time_out = module.params['time_out']
@@ -435,8 +442,11 @@ def main():
     if image_directory != "*DFT":
         image_directory = f"'{image_directory}'"
 
+    if image_catalog != "*NONE":
+        image_catalog = f"'{image_catalog}'"
+
     command = f'SNDPTFORD PTFID(({ptf_id} {product} {release})) DLVRYFMT({delivery_format}) ORDER({order}) \
-    REORDER({reorder}) CHKPTF({check_PTF}) IMGDIR({image_directory}) {parameters}'
+    REORDER({reorder}) CHKPTF({check_PTF}) IMGDIR({image_directory}) IMGCLG({image_catalog}) {parameters}'
 
     cl_sbmjob = "QSYS/SBMJOB CMD(" + ' '.join(command.split()) + ") " + 'LOG(4 *JOBD *SECLVL) ' + 'LOGOUTPUT(*PND) '
     startd = datetime.datetime.now()

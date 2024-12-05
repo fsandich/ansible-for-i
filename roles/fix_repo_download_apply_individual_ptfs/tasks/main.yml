@@ -9,7 +9,6 @@
   ansible.builtin.set_fact:
     all_ptfs_list: "{{ fix_repo_download_apply_individual_ptfs_ptfs_list_parm }}"
     original_ptfs_list: "{{ fix_repo_download_apply_individual_ptfs_ptfs_list_parm }}"
-  when: sequence_var|int == 1
 
 # Follow-up: requisite_list is not defined prior, so always default empty list here
 - name: Compose all_ptfs_list and all_requisite_ptfs_list
@@ -83,6 +82,7 @@
         sync_apply_individual_ptfs_src_host: "{{ fix_repo_download_apply_individual_ptfs_repo_server }}"
         sync_apply_individual_ptfs_already_loaded_list: "{{ check_ptf_loaded_ptfs_list }}"
         sync_apply_individual_ptfs_temp_or_perm: "{{ fix_repo_download_apply_individual_ptfs_temp_or_perm }}"
+        sync_apply_individual_ptfs_delete: "{{ fix_repo_download_apply_individual_ptfs_delete }}"
 
       when: fix_repo_download_apply_individual_ptfs_temp_or_perm != '*PERM'
 
@@ -98,6 +98,7 @@
             sync_apply_individual_ptfs_src_host: "{{ fix_repo_download_apply_individual_ptfs_repo_server }}"
             sync_apply_individual_ptfs_already_loaded_list: "{{ check_ptf_loaded_ptfs_list }}"
             sync_apply_individual_ptfs_temp_or_perm: "{{ fix_repo_download_apply_individual_ptfs_temp_or_perm }}"
+            sync_apply_individual_ptfs_delete: "{{ fix_repo_download_apply_individual_ptfs_delete }}"
           when: check_ptf_not_loaded_ptfs_list != [] or check_ptf_loaded_ptfs_list != []
 
         - name: Call ibmi_cl_command to install the temporarily applied PTFs
@@ -244,6 +245,3 @@
       ansible.builtin.debug:
         var: fix_repo_download_apply_individual_ptfs_requisite_ptfs_status
       when: fix_repo_download_apply_individual_ptfs_requisite_ptfs_status is defined
-
-    - name: End host (end_host)
-      ansible.builtin.meta: end_host

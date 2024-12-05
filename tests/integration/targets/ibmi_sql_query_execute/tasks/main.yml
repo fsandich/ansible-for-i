@@ -6,7 +6,24 @@
 
 - block: 
       
-    - include: install_rpm.yml 
+    - name: Setup info
+      ansible.builtin.setup:
+      register: setup_info
+
+    - name: Set fact for python version information
+      ansible.builtin.set_fact:
+        python_version: "{{ setup_info.ansible_facts.ansible_python.executable.split('/')[-1] }}"
+        python_minor: "{{ setup_info.ansible_facts.ansible_python.version.minor }}"
+  
+    - name: Display python with version major
+      ansible.builtin.debug:
+        msg: "{{ python_version }}"
+
+    - name: Display python version minor
+      ansible.builtin.debug:
+        msg: "{{ python_minor }}"
+
+    - include_tasks: install_rpm.yml
       vars: 
         python: "{{python_version}}"
       with_list: "{{required_rpms}}"
@@ -57,7 +74,7 @@
         sql: "select * from qgpl.ansible"
         expected_row_count: 2
 
-    - include: check_rpm.yml
+    - include_tasks: check_rpm.yml
       vars: 
         python: "{{python_version}}"
       with_list: "{{required_rpms}}"  
@@ -100,35 +117,35 @@
         expected_row_count: 1
         sql: "WITH last_ipl(ipl_time)
 
-AS (SELECT job_entered_system_time
+          AS (SELECT job_entered_system_time
 
-   FROM TABLE(qsys2.job_info(job_status_filter => '*ACTIVE', job_user_filter
+             FROM TABLE(qsys2.job_info(job_status_filter => '*ACTIVE', job_user_filter
 
-   => 'QSYS')) x
+             => 'QSYS')) x
 
-   WHERE job_name = '000000/QSYS/SCPF')
+            WHERE job_name = '000000/QSYS/SCPF')
 
-, abnormal(abnormal_count)
+            , abnormal(abnormal_count)
 
-AS (SELECT COUNT(*)
+          AS (SELECT COUNT(*)
 
-   FROM last_ipl, TABLE(qsys2.history_log_info(ipl_time, CURRENT TIMESTAMP)) x
+            FROM last_ipl, TABLE(qsys2.history_log_info(ipl_time, CURRENT TIMESTAMP)) x
 
-   WHERE message_id IN ('CPC1225'))
+            WHERE message_id IN ('CPC1225'))
 
-SELECT
+            SELECT
 
-CASE
+          CASE
 
-WHEN abnormal_count = 0
+          WHEN abnormal_count = 0
 
-THEN 'NEXT IPL WILL BE NORMAL'
+          THEN 'NEXT IPL WILL BE NORMAL'
 
-ELSE 'NEXT IPL WILL BE ABNORMAL - ABNORMAL END COUNT: ' concat abnormal_count
+          ELSE 'NEXT IPL WILL BE ABNORMAL - ABNORMAL END COUNT: ' concat abnormal_count
 
-END
+          END
 
-AS next_ipl_indicator FROM abnormal;"
+          AS next_ipl_indicator FROM abnormal;"
 
     - name: TC10 run sql query an non-exist file
       ibmi_sql_query:
@@ -168,7 +185,7 @@ AS next_ipl_indicator FROM abnormal;"
     - name: TC13 assert the previous task failed because of invalid value of expected_row_count
       assert:
         that:
-          - "'expected_row_count is of type ' in sql_query_result_7.msg"
+          - "'we were unable to convert to int' in sql_query_result_7.msg"
 
     - name: TC14 run sql query module with a valid sql and a wrong expected_row_count
       ibmi_sql_query:
@@ -228,10 +245,10 @@ AS next_ipl_indicator FROM abnormal;"
         that:
           - "'Unsupported parameters' in ibmi_sql_execute_5.msg"
 
-    - include: iasp.yml
+    - include_tasks: iasp.yml
   vars:
     required_rpms: [itoolkit, ibm_db]
-    python_version: "{{ansible_python_interpreter.split('/')[-1]}}"   
+#    python_version: "{{ansible_python_interpreter.split('/')[-1]}}"   
 
   always:
     - name: create default reply list entry for CPA7025

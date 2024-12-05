@@ -35,13 +35,4 @@
    - name: Include fix_repo_download_apply_individual_ptfs role to download and apply a list of individual ptfs
      ansible.builtin.include_role:
       name: fix_repo_download_apply_individual_ptfs
-     # Try all PTFs even if an error occurs
-     ignore_errors: true
-     register: fix_repo_download_apply_individual_ptfs_ignore_errors
-     loop: "{{ query('sequence', 'start=1 end=5') }}"
-     loop_control:
-      loop_var: sequence_var
-
-   - name: Fail condition
-     ansible.builtin.fail:
-      msg: "Loop already 5 times. quit."
+     register: fix_repo_download_apply_individual_ptfs_result

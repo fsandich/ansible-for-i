@@ -14,7 +14,7 @@ from ansible.plugins.action import ActionBase
 from ansible.utils.display import Display
 from ansible.utils.hashing import checksum
 from ansible_collections.ibm.power_ibmi.plugins.module_utils.ibmi import ibmi_util
-__ibmi_module_version__ = "3.1.0"
+__ibmi_module_version__ = "3.2.0"
 
 display = Display()
 
@@ -143,7 +143,7 @@ class ActionModule(ActionBase):
                             return result
                         else:
                             cmd = f"QSYS/REN OBJ('{savefile_path}') NEWOBJ({rename_savf_name}.file)"
-                            module_output = self._execute_module(module_name='ibmi_cl_command', module_args={'cmd': cmd}, task_vars=task_vars)
+                            module_output = self._execute_module(module_name='ibm.power_ibmi.ibmi_cl_command', module_args={'cmd': cmd}, task_vars=task_vars)
                             save_result = module_output
                             rc = save_result['rc']
                             if rc != ibmi_util.IBMi_COMMAND_RC_SUCCESS:
@@ -157,7 +157,7 @@ class ActionModule(ActionBase):
                         display.debug(f"ibm i debug: The original save file is successfully renamed to {rename_savf_name}")
                     else:
                         cmd = f'QSYS/DLTOBJ OBJ({lib_name}/{savefile_name}) OBJTYPE(*FILE)'
-                        module_output = self._execute_module(module_name='ibmi_cl_command', module_args={'cmd': cmd}, task_vars=task_vars)
+                        module_output = self._execute_module(module_name='ibm.power_ibmi.ibmi_cl_command', module_args={'cmd': cmd}, task_vars=task_vars)
                         save_result = module_output
                         rc = save_result['rc']
                         if rc != ibmi_util.IBMi_COMMAND_RC_SUCCESS:
@@ -176,7 +176,7 @@ class ActionModule(ActionBase):
 
             # Create the save file
             cmd = f'QSYS/CRTSAVF FILE({lib_name}/{savefile_name})'
-            module_output = self._execute_module(module_name='ibmi_cl_command', module_args={'cmd': cmd}, task_vars=task_vars)
+            module_output = self._execute_module(module_name='ibm.power_ibmi.ibmi_cl_command', module_args={'cmd': cmd}, task_vars=task_vars)
             save_result = module_output
             rc = save_result['rc']
             if rc != ibmi_util.IBMi_COMMAND_RC_SUCCESS:
@@ -216,7 +216,7 @@ class ActionModule(ActionBase):
         finally:
             if created is True and result['failed'] is True:
                 cmd = f'QSYS/DLTOBJ OBJ({lib_name}/{savefile_name}) OBJTYPE(*FILE)'
-                module_output = self._execute_module(module_name='ibmi_cl_command', module_args={'cmd': cmd}, task_vars=task_vars)
+                module_output = self._execute_module(module_name='ibm.power_ibmi.ibmi_cl_command', module_args={'cmd': cmd}, task_vars=task_vars)
                 save_result = module_output
                 rc = save_result['rc']
                 if rc != ibmi_util.IBMi_COMMAND_RC_SUCCESS and ('CPF2105' not in save_result['stderr']):

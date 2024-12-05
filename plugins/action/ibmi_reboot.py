@@ -18,7 +18,7 @@ from ansible.utils.display import Display
 
 display = Display()
 
-__ibmi_module_version__ = "3.1.0"
+__ibmi_module_version__ = "3.2.0"
 
 
 class TimedOutException(Exception):
@@ -122,7 +122,7 @@ class ActionModule(RebootActionModule, ActionBase):
             task_vars = distribution['task_vars']
             command_result = self._execute_module(
                 task_vars=task_vars,
-                module_name='ibmi_sql_query',
+                module_name='ibm.power_ibmi.ibmi_sql_query',
                 module_args={
                     "sql": sql,
                     "expected_row_count": 1,
@@ -225,7 +225,7 @@ class ActionModule(RebootActionModule, ActionBase):
         try:
             self._execute_module(
                 task_vars=task_vars,
-                module_name='ibmi_cl_command',
+                module_name='ibm.power_ibmi.ibmi_cl_command',
                 module_args={
                     "cmd": send_message_command,
                     "become_user": become_user,
@@ -242,7 +242,7 @@ class ActionModule(RebootActionModule, ActionBase):
         try:
             module_output = self._execute_module(
                 task_vars=task_vars,
-                module_name='ibmi_cl_command',
+                module_name='ibm.power_ibmi.ibmi_cl_command',
                 module_args={
                     "cmd": reboot_command,
                     "become_user": become_user,
