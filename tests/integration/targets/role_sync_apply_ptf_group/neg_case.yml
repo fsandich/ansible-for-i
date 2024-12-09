@@ -1,14 +1,16 @@
-# negative test of the role
-- set_fact:
+# Negative test of the role
+- name: Set neg_group
+  ansible.builtin.set_fact:
     neg_group: "SF99769"
 
-- block:
-  - name: non-exist file_path
-    include_role:
+- name: Test block
+  block:
+  - name: Non-exist file_path
+    ansible.builtin.include_role:
       name: sync_apply_ptf_group
     vars:
       sync_apply_ptf_group_ptf_group_info: { 'file_path': '/1233211234567', 'file_name': ['S8404V01.BIN'] }
-      sync_apply_ptf_group_src_host: "fix_repo"     
+      sync_apply_ptf_group_src_host: "fix_repo"
 
   - name: Assert sync_apply_ptf_group return variables
     ansible.builtin.assert:
@@ -21,8 +23,8 @@
     ansible.builtin.debug:
       var: sync_apply_ptf_group_sync_result
 
-  - name: assert values
-    assert:
+  - name: Assert values
+    ansible.builtin.assert:
       that:
         - sync_apply_ptf_group_sync_apply_fail
         - sync_apply_ptf_group_sync_result.failed == 255

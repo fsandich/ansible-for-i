@@ -1,4 +1,4 @@
-- include: install_opts.yml
+- include_tasks: install_opts.yml
 
 - name: uninstall the product 
   ibmi_uninstall_product:
@@ -84,7 +84,7 @@
       - "'5770JV1     *BASE      2989' not in verify_products.stdout"
       - "'5770JV1     *BASE      2924' not in verify_products.stdout"
 
-- include: install_opts.yml
+- include_tasks: install_opts.yml
 
 - name: uninstall the product with default values
   ibmi_uninstall_product:

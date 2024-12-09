@@ -1,3 +1,4 @@
 ---
 # Default values for fix_repo_download_apply_individual_ptfs
 fix_repo_download_apply_individual_ptfs_temp_or_perm: '*TEMP'
+fix_repo_download_apply_individual_ptfs_delete: true

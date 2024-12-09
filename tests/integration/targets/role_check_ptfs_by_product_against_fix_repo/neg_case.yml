@@ -1,17 +1,17 @@
   # negative test of the role
-- name: non-exist product id - return not found
-  include_role: 
+- name: Non-exist product id - return not found
+  ansible.builtin.include_role:
     name: check_ptfs_by_product_against_fix_repo
   vars:
     check_ptfs_by_product_against_fix_repo_product: "ABCD123"
     check_ptfs_by_product_against_fix_repo_repo_server: "repo_server_name"
 
-- name: debug
-  debug:
-    var=check_ptfs_by_product_against_fix_repo_ptf_status
+- name: Debug
+  ansible.builtin.debug:
+    var: check_ptfs_by_product_against_fix_repo_ptf_status
 
-- name: assert expected values
-  assert:
+- name: Assert expected values
+  ansible.builtin.assert:
     that:
       - check_ptfs_by_product_against_fix_repo_ptf_status is defined
       - check_ptfs_by_product_against_fix_repo_ptf_status | length == 1
@@ -19,63 +19,64 @@
       - check_ptfs_by_product_against_fix_repo_ptf_status[0]['PRODUCT_STATUS'] == "Record not found in repository DB"
 
 
-- name: product id length is longer than 7 #TODO: should report error due to naming rules
-  include_role: 
+- name: Product id length is longer than 7 # TODO: should report error due to naming rules
+  ansible.builtin.include_role:
     name: check_ptfs_by_product_against_fix_repo
   vars:
     check_ptfs_by_product_against_fix_repo_product: "ABCD1234"
     check_ptfs_by_product_against_fix_repo_repo_server: "repo_server_name"
 
-- name: debug
-  debug:
-    var=check_ptfs_by_product_against_fix_repo_ptf_status
-    
-- name: assert expected values
-  assert:
+- name: Debug
+  ansible.builtin.debug:
+    var: check_ptfs_by_product_against_fix_repo_ptf_status
+
+- name: Assert expected values
+  ansible.builtin.assert:
     that:
       - check_ptfs_by_product_against_fix_repo_ptf_status is defined
       - check_ptfs_by_product_against_fix_repo_ptf_status | length == 1
       - check_ptfs_by_product_against_fix_repo_ptf_status[0]['PRODUCT'] == "ABCD1234"
       - check_ptfs_by_product_against_fix_repo_ptf_status[0]['PRODUCT_STATUS'] == "Record not found in repository DB"
 
-- block:
-  - name: missing product
-    include_role: 
+- name: Code block
+  block:
+  - name: Missing product
+    ansible.builtin.include_role:
       name: check_ptfs_by_product_against_fix_repo
     vars:
       check_ptfs_by_product_against_fix_repo_repo_server: "repo_server_name"
- 
-  - name: debug
-    debug:
-      var=check_ptfs_by_product_against_fix_repo_ptf_status
-      
-  - name: assert expected values
-    assert:
+
+  - name: Debug
+    ansible.builtin.debug:
+      var: check_ptfs_by_product_against_fix_repo_ptf_status
+
+  - name: Assert expected values
+    ansible.builtin.assert:
       that:
         - check_ptfs_by_product_against_fix_repo_ptf_status is defined
         - check_ptfs_by_product_against_fix_repo_ptf_status | length == 0
 
-  - name: missing repo_server
-    include_role: 
+  - name: Missing repo_server
+    ansible.builtin.include_role:
       name: check_ptfs_by_product_against_fix_repo
     vars:
       check_ptfs_by_product_against_fix_repo_product: "5770SS1"
 
-  - name: debug
-    debug:
-      var=check_ptfs_by_product_against_fix_repo_ptf_status
+  - name: Debug
+    ansible.builtin.debug:
+      var: check_ptfs_by_product_against_fix_repo_ptf_status
 
-  - name: assert expected values
-    assert:
+  - name: Assert expected values
+    ansible.builtin.assert:
       that:
         - check_ptfs_by_product_against_fix_repo_ptf_status is defined
-        - check_ptfs_by_product_against_fix_repo_ptf_status | length == 0    
+        - check_ptfs_by_product_against_fix_repo_ptf_status | length == 0
 
-  - name: missing database
-    include_role: 
+  - name: Missing database
+    ansible.builtin.include_role:
       name: check_ptfs_by_product_against_fix_repo
     vars:
-      check_ptfs_by_product_against_fix_repo_product: "5770SS1"    
+      check_ptfs_by_product_against_fix_repo_product: "5770SS1"
       check_ptfs_by_product_against_fix_repo_repo_server: "repo_server_name"
 
-  ignore_errors: true     
+  ignore_errors: true

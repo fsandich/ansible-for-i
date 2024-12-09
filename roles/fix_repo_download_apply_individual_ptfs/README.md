@@ -12,6 +12,7 @@ Role Variables
 | `fix_repo_download_apply_individual_ptfs_ptfs_list_parm`  | list          | The list of PTFs that need to be applied.     |
 | `fix_repo_download_apply_individual_ptfs_repo_server`     | str           | Specifies the SNDPTFORD server used to download ptfs.     |
 | `fix_repo_download_apply_individual_ptfs_temp_or_perm`    | str           | Used by apply_ptf role. Controls whether the target PTFs will be permanent applied or temporary applied. Value can be  '*TEMP' or '*PERM'. Default value is '*TEMP'.                     |
+| `fix_repo_download_apply_individual_ptfs_delete`          | bool          | Used by sync_apply_individual_ptfs role on whether to delete the PTF install SAV file. Default value is True. |
 
 Return Variables
 --------------

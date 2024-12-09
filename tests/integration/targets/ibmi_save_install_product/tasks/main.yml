@@ -10,7 +10,7 @@
 #       OPTBASE     *FILE     JV1         SAVF           
 #       OPT16       *FILE     JV1         SAVF           
 #       OPT17       *FILE     JV1         SAVF   
-- include: simple_save_install_uninstall.yml
+- include_tasks: simple_save_install_uninstall.yml
   when: "ansible_distribution_version != '7' or ansible_distribution_release != '4'"
 
 - block:
@@ -45,15 +45,15 @@
       ibmi_cl_command:
         cmd: "CALL PGM(QLPACAGR) PARM('5770JV1' 'V7r4m0' '0000' '*')"
 
-    - include: install_negative_case.yml
+    - include_tasks: install_negative_case.yml
 
-    - include: install_product.yml
+    - include_tasks: install_product.yml
 
-    - include: save_negative_case.yml
+    - include_tasks: save_negative_case.yml
 
-    - include: save_product.yml
+    - include_tasks: save_product.yml
 
-    - include: uninstall_product.yml
+    - include_tasks: uninstall_product.yml
   when: "ansible_distribution_version == '7' and ansible_distribution_release == '4'"
 
   always:

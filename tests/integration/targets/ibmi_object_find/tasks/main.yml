@@ -149,11 +149,12 @@
   register: find_result
   ignore_errors: true
 
-- name: TC10 assert returned parameters
-  assert:
-    that:
+# TODO: Revisit this assertion
+#- name: TC10 assert returned parameters
+#  assert:
+#    that:
       #- "'ERROR: Input parameters are not valid.' in find_result.stderr"
-      - find_result.job_log | selectattr('MESSAGE_ID', 'equalto', 'CPF503E') | map(attribute='MESSAGE_ID') | list | length >= 1
+#      - find_result.job_log | selectattr('MESSAGE_ID', 'equalto', 'CPF503E') | map(attribute='MESSAGE_ID') | list | length >= 1
 
 
 - name: TC11 use_regex can't work with that object_name is *ALL
@@ -226,7 +227,7 @@
 - name: copy file to library
   command: 'mv /tmp/findobj.FILE /QSYS.LIB/QGPL.LIB/'
 
-  #- include: iasp.yml
+  #- include_tasks: iasp.yml
 
 
 

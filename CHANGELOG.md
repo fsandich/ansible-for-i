@@ -1,5 +1,42 @@
 # Change Log
 
+## v3.2.0 (2024-12-06)
+
+This release includes minor enhancements requested from github issues and/or provided in contributed code
+from github PRs, along with bug fixes to resolve various github issues.
+
+The modifications for this release include:
+
+- Adding bash setup and OSS package install playbooks to the collection.
+  - Contribution from github PR #215 (<https://github.com/IBM/ansible-for-i/pull/215>) with minor tweaks.
+
+- Adding image catalog parameter to ibmi_download_fix module.
+  - Incorporate github PR #214 (<https://github.com/IBM/ansible-for-i/pull/214>) to update ibmi_download_fix, and perform integration test corrections for ibmi_download_fix.
+
+- Corrections to Ansible install documentation.
+  - Update Ansible installation instructions from github PR #213 (<https://github.com/IBM/ansible-for-i/pull/213>) along with some additional tweaks.
+
+- Fix for github issue #205 (<https://github.com/IBM/ansible-for-i/issues/205>) and test case clean up.
+  - Adding fully qualified collection name for module references in various plugins to follow Ansible best practices.
+
+- Adding delete option for fix_repo_download_apply_individual_ptfs.
+  - Request from github issue #203 (<https://github.com/IBM/ansible-for-i/issues/203>).
+
+- Enhancement for sync_apply_ptf_group role.
+  - Github PRs #175 (<https://github.com/IBM/ansible-for-i/pull/175>) and #176 (<https://github.com/IBM/ansible-for-i/pull/176>).
+  - Add additional role variable "apply_type" to the sync_apply_ptf_group role to allow control of when the group fix is applied.
+
+- ibmi_cl_command module enhancement: github issue #165 (<https://github.com/IBM/ansible-for-i/issues/165>).
+  - Allow more flexibility with the ibmi_cl_command to force the output to follow 5250 convention with a new input parameter "is_cmd5250".
+  - Incorporates PR #184 (<https://github.com/IBM/ansible-for-i/pull/184>).
+
+- Fix for issue #209 (<https://github.com/IBM/ansible-for-i/issues/209>) with role fix_repo_download_apply_individual_ptfs.
+  - Incorporates PR #210 (<https://github.com/IBM/ansible-for-i/pull/210>).
+
+- ibmi_fix_group_check module change to use PSP XML files with latest fix information.
+  - Use XML files provided by PSP instead of scraping PSP html pages such as the PTF group landing page and any fix specific pages.
+  - This resolves github issue #204 (<https://github.com/IBM/ansible-for-i/issues/204>).
+
 ## v3.1.0 (2024-07-24)
 
 The collection is verified on Ansible core 2.16 with this release.

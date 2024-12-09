@@ -2,3 +2,4 @@
 # Default values for sync_apply_ptf_group
 sync_apply_ptf_group_dest: "~/PTF/ptfgroup"
 sync_apply_ptf_group_delete: true
+sync_apply_ptf_group_apply_type: '*DLYALL'
