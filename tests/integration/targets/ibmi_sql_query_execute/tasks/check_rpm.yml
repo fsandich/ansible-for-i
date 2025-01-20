@@ -1,9 +1,17 @@
 - name: Verify {{item}} installed
-  raw: /QOpensys/pkgs/bin/rpm -qa {{python}}-{{item}}
+  raw: /QOpensys/pkgs/bin/yum list {{python}}-{{item}}
   register: rpm_query_result
 
 - name: Remove {{item}} if it is installed
   command: /QOpensys/pkgs/bin/yum remove {{python}}-{{item}} -y
+  when: rpm_query_result.stdout != ""
+
+- name: Verify {{item}} installed
+  raw: /QOpensys/pkgs/bin/yum list {{python}}{{python_minor}}-{{item}}
+  register: rpm_query_result
+
+- name: Remove {{item}} if it is installed
+  command: /QOpensys/pkgs/bin/yum remove {{python}}{{python_minor}}-{{item}} -y
   when: rpm_query_result.stdout != ""
 
 - name: Remove the directory of {{item}} if it is removed
@@ -18,10 +26,14 @@
   register: sql_query_result_1
   ignore_errors: true
 
+- name: Set comparison string
+  ansible.builtin.set_fact:
+    compare_str: "{{item}} package is required"
+
 - name: assert the previous task failed because the target ibm i lacks of {{item}}
   assert:
     that:  
-      - "'{{item}} package is required' in sql_query_result_1.msg"
+      - compare_str in sql_query_result_1.msg
 
 - name: run sql execute module
   ibmi_sql_execute:
@@ -32,7 +44,10 @@
 - name: assert the previous task failed because the target ibm i lacks of {{item}}
   assert:
     that:  
-      - "'{{item}} package is required' in sql_execute_result_1.msg"
+      - compare_str in sql_execute_result_1.msg
 
 - name: Install {{item}}
   command: /QOpensys/pkgs/bin/yum install {{python}}-{{item}} -y
+
+- name: Install {{item}}
+  command: /QOpensys/pkgs/bin/yum install {{python}}{{python_minor}}-{{item}} -y

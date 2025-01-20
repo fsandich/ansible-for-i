@@ -21,6 +21,9 @@ description:
      - The C(ibmi_fix_group_check) module retrieve latest PTF group information from PSP(Preventive Service Planning) server.
      - Refer to https://www.ibm.com/support/pages/node/667567 for more details of PSP.
      - ALL PTF groups or specific PTF groups are supported.
+     - A PTF group returns a list of PTFs that the group consists of, while a cumulative PTF returns a package ID.
+     - The PTF group information is derived from the top level XML web page https://public.dhe.ibm.com/services/us/igsc/PSP/xmldoc.xml with a corresponding
+       XML file at https://public.dhe.ibm.com/services/us/igsc/PSP/ for each PTF group (or text file for a cumulative).
 options:
   groups:
     description:
@@ -87,11 +90,18 @@ group_info:
     returned: When rc is zero.
     sample: [
         {
-            "PTF_GROUP_NUMBER": "SF99115",
-            "RELEASE": "R610",
-            "TITLE": "610 IBM HTTP Server for i",
-            "PTF_GROUP_LEVEL": "46",
-            "RELEASE_DATE": "09/28/2015"
+            "description": "SF99738 - 740 Group Security",
+            "package_id": null,
+            "ptf_group_level": 70,
+            "ptf_group_number": "SF99738",
+            "ptf_list": [
+                "SJ02177",
+                ...,
+                "SI70103"
+            ],
+            "release": "R740",
+            "release_date": "10/01/2024",
+            "url": "https://public.dhe.ibm.com/services/us/igsc/PSP/SF99738.xml"
         }
     ]
 '''
@@ -100,125 +110,95 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ibm.power_ibmi.plugins.module_utils.ibmi import ibmi_util
 from ansible.module_utils import urls
 import datetime
+import xml.etree.ElementTree as ET
 import re
 
 
-__ibmi_module_version__ = "3.1.0"
+__ibmi_module_version__ = "3.2.0"
 
-PSP_URL = "https://www.ibm.com/support/pages/sites/default/files/inline-files/xmldoc.xml"
-ALL_GROUP_PAGE = "https://www.ibm.com/support/pages/ibm-i-group-ptfs-level"
+PSP_URL = "https://public.dhe.ibm.com/services/us/igsc/PSP/xmldoc.xml"
+PTF_URL_TEMPLATE = "https://public.dhe.ibm.com/services/us/igsc/PSP/{}.xml"
+PTF_TXT_URL_TEMPLATE = "https://public.dhe.ibm.com/services/us/igsc/PSP/{}.txt"
 HTTP_AGENT = "ansible/ibm.power_ibmi"
 
 
-# url: https://www.ibm.com/support/pages/ibm-i-group-ptfs-level
-# group: 'SF99738'
-def get_group_info_from_web(groups, validate_certs, timeout):
-    # PTF information can span multiple lines on latest all group page
-    pattern_link = re.compile(
-        r'>(?P<rel>R\d{3})<.+?'
-        r'(?P<url>https:\/\/\S+?)\".+?>'
-        r'(?P<grp>[A-Z]{2}\d{5}):.+?'
-        r'(?P<dsc>\w.+?)<.+?'
-        r'(?P<lvl>\d{1,5})<.+?>'
-        r'(?P<d>\d{2}\/\d{2}\/\d{4})<',
-        re.DOTALL
-    )
+def get_group_info_from_xml(groups, validate_certs, timeout):
     response = ''
     try:
-        response = urls.open_url(ALL_GROUP_PAGE, validate_certs=validate_certs, timeout=timeout, http_agent=HTTP_AGENT)
+        response = urls.open_url(PSP_URL, validate_certs=validate_certs, timeout=timeout, http_agent=HTTP_AGENT)
     except Exception as e:
         return [dict(
-                url=ALL_GROUP_PAGE,
-                error=str(e),
-                )]
+            url=PSP_URL,
+            error=str(e),
+        )]
     r = response.read().decode("utf-8")
+    root = ET.fromstring(r)
     group_list = []
     groups = list(set([x.upper() for x in groups]))
-    list_all = False
-    if '*ALL' in groups:
-        list_all = True
-    for ptf_str in re.finditer(pattern_link, r):
-        if list_all or ptf_str.group('grp') in groups:
+    list_all = '*ALL' in groups
+    found_groups = set()
+    for psp in root.findall('psp'):
+        group_number = psp.find('number').text
+        if group_number is None:
+            continue
+        if list_all or group_number in groups:
+            ptf_list, package_id, url = get_ptf_list_from_xml_or_txt(group_number, validate_certs, timeout)
+            if ptf_list is not None:
+                group_info = dict(
+                    ptf_group_number=group_number,
+                    ptf_group_level=int(psp.find('level').text) if psp.find('level') is not None else None,
+                    release=psp.find('release').text if psp.find('release') is not None else None,
+                    release_date=psp.find('date').text if psp.find('date') is not None else None,
+                    description=psp.find('title').text if psp.find('title') is not None else None,
+                    url=url,
+                    ptf_list=ptf_list,
+                    package_id=package_id,
+                )
+                group_list.append(group_info)
+                found_groups.add(group_number)
+    # Add missing groups with URLs
+    missing_groups = set(groups) - found_groups
+    for group in missing_groups:
+        ptf_list, package_id, url = get_ptf_list_from_xml_or_txt(group, validate_certs, timeout)
+        if ptf_list is not None:
             group_list.append(dict(
-                ptf_group_number=ptf_str.group('grp'),
-                ptf_group_level=int(ptf_str.group('lvl')),
-                release=ptf_str.group('rel'),
-                release_date=ptf_str.group('d'),
-                url=ptf_str.group('url'),
-                description=ptf_str.group('dsc'),
-                ptf_list=get_ptf_list_from_web(
-                    ptf_str.group('url'), validate_certs, timeout),
+                ptf_group_number=group,
+                description="Not available in XML",
+                ptf_group_level=None,
+                release="Not available in XML",
+                release_date="Not available in XML",
+                ptf_list=ptf_list,
+                url=url,
+                package_id=package_id,
             ))
     return group_list
 
 
-# url: https://www.ibm.com/support/pages/uid/nas4SF99738
-def get_ptf_list_from_web(url, validate_certs, timeout):
-    pattern_link = re.compile(
-        r'(?P<url>https://www.ibm.com/support/pages/ptf/\S+?)\".+?'
-        r'(?P<ptf>[A-Z]{2}\d{5})<.+?'
-        r'(?P<date>\d{2}\/\d{2}\/\d{2}).+?'
-        r'(?P<apar>[A-Z]{2}\d{5}).+?'
-        r'(?P<product>\d{4}\w{3})'
-    )
-    pattern_packid = r'PACKAGE ID:.+?(?P<packid>[A-Z]\d{7})'
-    response = ''
-    try:
-        response = urls.open_url(url, validate_certs=validate_certs, timeout=timeout, http_agent=HTTP_AGENT)
-    except Exception as e:
-        return [dict(
-                url=url,
-                error=str(e),
-                )]
-    r = response.read().decode("utf-8")
-    lines = r.splitlines()
+def get_ptf_list_from_xml_or_txt(group_number, validate_certs, timeout):
     ptf_list = []
-    for line in lines:
-        # if it is a cum package
-        cum_pack_id = re.search(pattern_packid, line)
-        if cum_pack_id:
-            return get_cum_ptf_list_from_web(cum_pack_id.group('packid'), validate_certs, timeout)
-        # common ptf groups
-        for ptf_line in re.finditer(pattern_link, line):
-            ptf_list.append(dict(
-                ptf_id=ptf_line.group('ptf'),
-                product=ptf_line.group('product'),
-                apar=ptf_line.group('apar'),
-                date=ptf_line.group('date'),
-            ))
-    return ptf_list
-
-
-# url: https://www.ibm.com/support/pages/uid/nas4C0128730
-def get_cum_ptf_list_from_web(pack_id, validate_certs, timeout):
-    pattern_link = re.compile(
-        r'(?P<url>https?:\/\/\S+)>'
-        r'(?P<ptf>[A-Z]{2}\d{5})<.+'
-        r'(?P<lvl>\d{5}).+'
-        r'(?P<product>\d{4}\w{3}).+'
-        r'(?P<rel>V\dR\dM\d)'
-    )
-    response = ''
-    url = 'https://www.ibm.com/support/pages/uid/nas4' + pack_id
+    package_id = None
+    ptf_url = PTF_URL_TEMPLATE.format(group_number)
+    # Try fetching the XML file
     try:
-        response = urls.open_url(url, validate_certs=validate_certs, timeout=timeout, http_agent=HTTP_AGENT)
+        response = urls.open_url(ptf_url, validate_certs=validate_certs, timeout=timeout, http_agent=HTTP_AGENT)
+        r = response.read().decode("utf-8")
+        root = ET.fromstring(r)
+        for number in root.findall('.//number'):
+            ptf_list.append(number.text)
+        return ptf_list, package_id, ptf_url
     except Exception as e:
-        return [dict(
-                url=url,
-                error=str(e),
-                )]
-    r = response.read().decode("utf-8")
-    lines = r.splitlines()
-    ptf_list = []
-    for line in lines:
-        for ptf_line in re.finditer(pattern_link, line):
-            ptf_list.append(dict(
-                ptf_id=ptf_line.group('ptf'),
-                product=ptf_line.group('product'),
-                level_added=ptf_line.group('lvl'),
-                release=ptf_line.group('rel'),
-            ))
-    return ptf_list
+        # If XML file is not found, try fetching the TXT file
+        ptf_url = PTF_TXT_URL_TEMPLATE.format(group_number)
+        try:
+            response = urls.open_url(ptf_url, validate_certs=validate_certs, timeout=timeout, http_agent=HTTP_AGENT)
+            r = response.read().decode("utf-8")
+            match = re.search(r'PACKAGE ID:\s*(C\d+)', r)
+            if match:
+                package_id = match.group(1)
+            return ptf_list, package_id, ptf_url
+        except Exception as e:
+            # If TXT file is not found or there's an error, return None
+            return None, package_id, ptf_url
 
 
 def main():
@@ -243,7 +223,7 @@ def main():
     timeout = module.params['timeout']
 
     startd = datetime.datetime.now()
-    psp_groups = get_group_info_from_web(groups_num, validate_certs, timeout)
+    psp_groups = get_group_info_from_xml(groups_num, validate_certs, timeout)
     result.update({'group_info': psp_groups})
     result.update({'count': len(psp_groups)})
 

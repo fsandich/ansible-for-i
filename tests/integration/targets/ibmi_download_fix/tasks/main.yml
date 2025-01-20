@@ -15,6 +15,8 @@
 # become_user
 # become_user_password
 
+# TODO: Revisit use of passwords with special characters and the use of double quotes to handle.
+
 - block:
   - name: TC00 - get ansible host os400 version
     shell: system "DSPSFWRSC" | grep "5770SS1" | head -n 1 | awk '{print $2}'
@@ -25,8 +27,8 @@
   - debug:
       msg: "{{os400_ver}}"
   - set_fact:  # pre-define some valid ptfs in systems for each os version, they should be ready on host for testing
-      ptfs: ['SI69940', 'SI73848'] # first one is valid, second one is invalid
-      ptf_grps: ['SF99663']
+      ptfs: ['SJ00333', 'SI73848'] # first one is valid, second one is invalid
+      ptf_grps: ['SF99667']
       vvrrmm: "070400"
     when: os400_ver == "V7R4M0"
   - set_fact:
@@ -53,7 +55,8 @@
       operation: 'create'
       user: "{{ibmi_user}}"
       special_authority: '*NONE'
-      password: '"{{ibmi_pass}}"'
+      #password: '"{{ibmi_pass}}"'
+      password: '{{ibmi_pass}}'
       user_class: '*USER'
     register: crtusrprf
     failed_when: crtusrprf.rc != 0
@@ -62,7 +65,7 @@
     ibmi_fix:
       operation: 'query'
       fix_list:
-        - 'SI69940'
+        - "{{ptfs[0]}}"
     register: qryptf
 
   - block:
@@ -90,14 +93,19 @@
     register: dl_single_ptf_result
     failed_when: dl_single_ptf_result.rc != 0
 
+  - name: Set PTF comparison strings
+    set_fact:
+      ptf_file_name: "Q{{ptfs[0]}}"
+      ptf_file_path: "/qsys.lib/qgpl.lib/Q{{ptfs[0]}}.FILE"
+
   - name: TC01 - Assert value
     assert:
       that:
-        - dl_single_ptf_result.download_list | selectattr('file_name','equalto','Q"{{ptfs[0]}}"')
-        - dl_single_ptf_result.download_list | selectattr('file_path','equalto','/qsys.lib/qgpl.lib/Q"{{ptfs[0]}}".FILE')
-        - dl_single_ptf_result.download_list | selectattr('product','equalto','5770SS1')
-        - dl_single_ptf_result.download_list | selectattr('release','equalto','{{os400_ver}}')
-        - dl_single_ptf_result.download_list | selectattr('ptf_id','equalto','"{{ptfs[0]}}"')
+        - dl_single_ptf_result.download_list[0].file_name == ptf_file_name
+        - dl_single_ptf_result.download_list[0].file_path == ptf_file_path
+        - dl_single_ptf_result.download_list[0].product == '5770SS1'
+        - dl_single_ptf_result.download_list[0].release == os400_ver
+        - dl_single_ptf_result.download_list[0].ptf_id ==  ptfs[0]
         - dl_single_ptf_result.order_id is defined
         - dl_single_ptf_result.command is defined
         - '"REORDER(*YES)" in dl_single_ptf_result.command' #default value
@@ -203,11 +211,15 @@
     register: dl_single_ptf_result
     failed_when: dl_single_ptf_result.rc != 0
 
+  - name: TC06 - Comparison string for assertion
+    set_fact:
+      comp_file_path: '/home/{{ansible_ssh_user}}/PTFs'
+
   - name: TC06 - Assert values
     assert:
       that:
-        - dl_single_ptf_result.file_path == '/home/{{ansible_ssh_user}}/PTFs'
-        - '"/home/{{ansible_ssh_user}}/PTFs" in dl_single_ptf_result.command'
+        - dl_single_ptf_result.file_path == comp_file_path
+        - 'comp_file_path in dl_single_ptf_result.command'
         - dl_single_ptf_result.msg == 'SNDPTFORD successfully ended.'
         - dl_single_ptf_result.order_id != ""
 
@@ -276,16 +288,16 @@
     register: dltptf
 
   - name: TC13 - Download a PTF group with delivery_format '*SAVF' - query ptf group from PSP
-    ibm.power_ibmi.ibmi_fix_check:
+    ibm.power_ibmi.ibmi_fix_group_check:
       groups:
         - "{{ptf_grps[0]}}"
-    register: ptfs_list
+    register: ptf_group_result
 
   - name: TC13 - Download a PTF group with delivery_format '*SAVF' - remove single ptfs in this group on system if any
     file: 
-      path: "/QSYS.LIB/QGPL.LIB/Q{{item.ptf_id}}.FILE"
+      path: "/QSYS.LIB/QGPL.LIB/Q{{item}}.FILE"
       state: absent
-    with_items: "{{ptfs_list.group_info[0]['ptf_list']}}"
+    with_items: "{{ptf_group_result.group_info[0]['ptf_list']}}"
 
   - name: TC13 - Download a PTF group with delivery_format '*SAVF' #by default wait=true, ptf cannot be exist under QGPL
     ibmi_download_fix:
@@ -374,7 +386,8 @@
       release: "{{os400_ver}}"
       wait: true
       become_user: "{{superuser}}"
-      become_user_password: '"{{ibmi_pass}}"'
+      #become_user_password: '"{{ibmi_pass}}"'
+      become_user_password: '{{ibmi_pass}}'
     register: dl_single_ptf_result
     failed_when: dl_single_ptf_result.rc != 0
 
@@ -384,7 +397,8 @@
       delivery_format: "*IMAGE"
       release: "*ONLYRLS"
       become_user: "{{superuser}}"
-      become_user_password: '"{{ibmi_pass}}"'
+      #become_user_password: '"{{ibmi_pass}}"'
+      become_user_password: '{{ibmi_pass}}'
     register: dl_ptf_grp_result
     failed_when: dl_ptf_grp_result.rc != 0
 
@@ -517,7 +531,8 @@
       ptf_id: "{{ptfs[0]}}"
       release: "{{os400_ver}}"
       become_user: "{{ibmi_user}}"
-      become_user_password: '"{{ibmi_pass}}"'
+      #become_user_password: '"{{ibmi_pass}}"'
+      become_user_password: '{{ibmi_pass}}'
     register: dl_single_ptf_result
     failed_when: dl_single_ptf_result.rc == 0
 
@@ -531,7 +546,8 @@
       ptf_id: "{{ptf_grps[0]}}"
       release: "{{os400_ver}}"
       become_user: "{{ibmi_user}}"
-      become_user_password: '"{{ibmi_pass}}"'
+      #become_user_password: '"{{ibmi_pass}}"'
+      become_user_password: '{{ibmi_pass}}'
     register: dl_ptf_grp_result
     failed_when: dl_ptf_grp_result.rc == 0
 
@@ -559,6 +575,11 @@
       operation: 'display'
       user: "{{ibmi_user}}"
     register: dsp_usr
+
+  - name: Ensure running as superuser for remove *USER profile
+    set_fact:
+      ansible_ssh_user: "{{superuser}}"
+    when: ansible_ssh_user != superuser
 
   - name: remove *USER profile created
     ibmi_cl_command:

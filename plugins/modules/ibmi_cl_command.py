@@ -35,6 +35,12 @@ options:
       - Ignored when the CL command with OUTPUT parameter, e.g. DSPLIBL, DSPHDWRSC.
     type: str
     default: '*SYSBAS'
+  is_cmd5250:
+    description:
+      - Specifies if the the command is expected to display output.
+      - Explicitly runs the command using run_command module instead of itoolkit_run_command_once module.
+    type: bool
+    default: False
   joblog:
     description:
       - If set to C(true), output the available job log even the rc is 0(success).
@@ -69,6 +75,11 @@ EXAMPLES = r'''
     cmd: 'CRTLIB LIB(TESTLIB)'
     become_user: 'USER1'
     become_user_password: 'yourpassword'
+
+- name: Run Check Product Option (CHKPRDOPT) command to verify that licensed programs are fully installed.
+  ibm.power_ibmi.ibmi_cl_command:
+    cmd: 'CHKPRDOPT *OPSYS'
+    is_cmd5250: True
 '''
 
 RETURN = r'''
@@ -165,13 +176,14 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible_collections.ibm.power_ibmi.plugins.module_utils.ibmi import ibmi_util
 from ansible_collections.ibm.power_ibmi.plugins.module_utils.ibmi import ibmi_module as imodule
 
-__ibmi_module_version__ = "3.1.0"
+__ibmi_module_version__ = "3.2.0"
 
 
 def main():
     module = AnsibleModule(
         argument_spec=dict(
             cmd=dict(type='str', required=True),
+            is_cmd5250=dict(type='bool', default=False),
             asp_group=dict(type='str', default='*SYSBAS'),
             joblog=dict(type='bool', default=False),
             become_user=dict(type='str'),
@@ -183,6 +195,7 @@ def main():
     ibmi_util.log_info("version: " + __ibmi_module_version__, module._name)
 
     command = module.params['cmd'].strip()
+    is_cmd5250 = module.params['is_cmd5250']
     asp_group = module.params['asp_group'].strip().upper()
     joblog = module.params['joblog']
     become_user = module.params['become_user']
@@ -191,7 +204,6 @@ def main():
     startd = datetime.datetime.now()
 
     command_upper = command.upper()
-    is_cmd5250 = False
     if command_upper.startswith('DSP'):
         is_cmd5250 = True
     if command_upper.startswith('QSYS/DSP'):

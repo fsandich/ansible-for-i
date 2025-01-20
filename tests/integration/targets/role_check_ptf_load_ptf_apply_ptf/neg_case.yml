@@ -1,8 +1,9 @@
 # negative test of the role check_ptf_groups_against_fix_repo
 
-- block:
+- name: Initial block for negative testing
+  block:
   - name: Add repo server VM to Ansible in-memory inventory
-    add_host:
+    ansible.builtin.add_host:
       name: "repo_server_name"
       ansible_ssh_host: ut2026p8.rch.stglabs.ibm.com
       ansible_user: tester
@@ -10,18 +11,18 @@
       ansible_ssh_extra_args: -o StrictHostKeyChecking=no
       ansible_python_interpreter: /QOpensys/pkgs/bin/python3
 
-  - name: invalid group_list
-    include_role:
+  - name: Invalid group_list
+    ansible.builtin.include_role:
       name: check_ptf_groups_against_fix_repo
-    vars: 
+    vars:
       check_ptf_groups_against_fix_repo_group_list:
         - "INVALID"
         - "SF12345"
       check_ptf_groups_against_fix_repo_type: "latest"
       check_ptf_groups_against_fix_repo_repo_server: repo_server_name
 
-  - name: assert the returned group_status
-    assert:
+  - name: Assert the returned group_status
+    ansible.builtin.assert:
       that:
         - check_ptf_groups_against_fix_repo_group_status | length == 2
         - check_ptf_groups_against_fix_repo_group_status[0]['LATEST_PTF_GROUP_LEVEL'] is not defined
@@ -29,48 +30,50 @@
         - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] == 'Record not found in repository DB'
         - check_ptf_groups_against_fix_repo_group_status[1]['PTF_GROUP_STATUS'] == 'Record not found in repository DB'
 
-  - name: invalid type
+  - name: Invalid type
     ignore_errors: true
-    import_role:
+    ansible.builtin.import_role:
       name: check_ptf_groups_against_fix_repo
-    vars: 
+    vars:
       check_ptf_groups_against_fix_repo_group_list:
         - "SF99704"
       check_ptf_groups_against_fix_repo_type: "newest"
       check_ptf_groups_against_fix_repo_repo_server: repo_server_name
 
-  - name: assert the returned group_status
-    assert:
+  - name: Assert the returned group_status
+    ansible.builtin.assert:
       that:
         - check_ptf_groups_against_fix_repo_group_status | length == 0
         - check_ptf_groups_against_fix_repo_group_status[0]['LATEST_PTF_GROUP_LEVEL'] is not defined
         - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_NUMBER'] is not defined
         - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] is not defined
-        - check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] is not defined  
+        - check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] is not defined
 
-  - name: assert the returned group_status
-    assert:
+  - name: Assert the returned group_status
+    ansible.builtin.assert:
       that:
         - check_ptf_groups_against_fix_repo_group_status | length == 0
         - check_ptf_groups_against_fix_repo_group_status[0]['LATEST_PTF_GROUP_LEVEL'] is not defined
         - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_NUMBER'] is not defined
         - check_ptf_groups_against_fix_repo_group_status[0]['PTF_GROUP_STATUS'] is not defined
-        - check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] is not defined   
+        - check_ptf_groups_against_fix_repo_group_status[0]['PTF_NOT_INSTALLED'] is not defined
 
-- block:
-  - set_fact:
+- name: Another test block
+  block:
+  - name: Set neg_list
+    ansible.builtin.set_fact:
       neg_list:
-        - {'product':'5733SC1', 'release':'V7R2M0'} 
+        - {'product':'5733SC1', 'release':'V7R2M0'}
 
-  - name: negative test for check_ptf
+  - name: Negative test for check_ptf
     ignore_errors: true
-    import_role:
+    ansible.builtin.import_role:
       name: check_ptf
     vars:
       check_ptf_list: '{{neg_list}}'
 
-  - name: assert the returned parameters
-    assert:
+  - name: Assert the returned parameters
+    ansible.builtin.assert:
       that:
         - check_ptf_ptfs_info == []
         - check_ptf_not_loaded_ptfs_list == []
@@ -78,21 +81,23 @@
 
 # negative test of the role load_ptf
 
-- block:
-  - set_fact:
+- name: Another test block
+  block:
+  - name: Set neg_list
+    ansible.builtin.set_fact:
       neg_list:
-        - {'ptf_id':'SI73751', 'product':'5733SC1'} #lack of file_name
-        - {'ptf_id':'SI73751', 'file_name':'QSI73751'} #lack of product
+        - {'ptf_id':'SI73751', 'product':'5733SC1'} # lack of file_name
+        - {'ptf_id':'SI73751', 'file_name':'QSI73751'} # lack of product
 
-  - name: load ptf with role
+  - name: Load ptf with role
     ignore_errors: true
-    import_role:
+    ansible.builtin.import_role:
       name: load_ptf
-    vars: 
+    vars:
       load_ptf_to_be_loaded_list: '{{neg_list}}'
 
-  - name: assert the returned list correct
-    assert:
+  - name: Assert the returned list correct
+    ansible.builtin.assert:
       that:
         - load_ptf_load_fail_list == neg_list
         - load_ptf_load_success_list == []
@@ -100,118 +105,120 @@
 
 # # negative test of the role apply_ptf
 
-- block:
-  - set_fact:
+- name: Another test block
+  block:
+  - name: Set neg_list
+    ansible.builtin.set_fact:
       neg_list:
         - {'ptf_id':'SI73430', 'product':'5733SS1', 'file_name':'QSI73430'} # more parameter provided
-        - {'ptf_id':'SI73430'} # insufficient parameter provided   
-        - {'product':'5770UME'} # insufficient parameter provided      
-  - name: apply ptf with role
-    include_role:
+        - {'ptf_id':'SI73430'} # insufficient parameter provided
+        - {'product':'5770UME'} # insufficient parameter provided
+  - name: Apply ptf with role
+    ansible.builtin.include_role:
       name: apply_ptf
-    vars: 
+    vars:
       apply_ptf_to_be_applied_list: '{{neg_list}}'
       apply_ptf_apply_all_loaded_ptfs: false
 
-  - name: assert the returned list correct
-    assert:
+  - name: Assert the returned list correct
+    ansible.builtin.assert:
       that:
         - apply_ptf_apply_fail_list == neg_list
         - apply_ptf_apply_success_list == []
-  
-  - name: negative testing on other options - apply_ptf_temp_or_perm
-    include_role:    
+
+  - name: Negative testing on other options - apply_ptf_temp_or_perm
+    ansible.builtin.include_role:
       name: apply_ptf
     vars:
       apply_ptf_to_be_applied_list:
         - {'ptf_id':'SI73543', 'product':'5770UME'}
       apply_ptf_temp_or_perm: '*TAMP' # invalid option
-      apply_ptf_delayed_option: '*NO' 
-      apply_ptf_auto_ipl: false     
+      apply_ptf_delayed_option: '*NO'
+      apply_ptf_auto_ipl: false
       apply_ptf_apply_all_loaded_ptfs: false
 
-  - name: assert the returned list correct
-    assert:
+  - name: Assert the returned list correct
+    ansible.builtin.assert:
       that:
-        - apply_ptf_apply_fail_list | length == 1 
+        - apply_ptf_apply_fail_list | length == 1
         - apply_ptf_apply_success_list == []
 
-  - name: negative testing on other options - apply_ptf_delayed_option
-    include_role:    
+  - name: Negative testing on other options - apply_ptf_delayed_option
+    ansible.builtin.include_role:
       name: apply_ptf
     vars:
       apply_ptf_to_be_applied_list:
         - {'ptf_id':'SI73543', 'product':'5770UME'}
       apply_ptf_temp_or_perm: '*TEMP'
-      apply_ptf_delayed_option: false # invalid option 
-      apply_ptf_auto_ipl: false    
-      apply_ptf_apply_all_loaded_ptfs: false 
-
-  - name: assert the returned list correct
-    assert:
-      that:
-        - apply_ptf_apply_fail_list | length == 1 
-        - apply_ptf_apply_success_list == []    
-
-  - name: negative testing on other options - apply_ptf_auto_ipl
-    include_role:    
-      name: apply_ptf
-    vars:
-      apply_ptf_to_be_applied_list:
-        - {'ptf_id':'SI73543', 'product':'5770UME'}
-      apply_ptf_temp_or_perm: '*TEMP'
-      apply_ptf_delayed_option: '*NO' 
-      apply_ptf_auto_ipl: '*NO'   # invalid option   
+      apply_ptf_delayed_option: false # invalid option
+      apply_ptf_auto_ipl: false
       apply_ptf_apply_all_loaded_ptfs: false
 
-  - name: assert the returned list correct
-    assert:
+  - name: Assert the returned list correct
+    ansible.builtin.assert:
       that:
-        - apply_ptf_apply_fail_list | length == 1 
-        - apply_ptf_apply_success_list == []  
+        - apply_ptf_apply_fail_list | length == 1
+        - apply_ptf_apply_success_list == []
 
-  - name: apply a PTF which is already applied on system - find a PTF which is *PERM applied
-    ibmi_sql_query:
+  - name: Negative testing on other options - apply_ptf_auto_ipl
+    ansible.builtin.include_role:
+      name: apply_ptf
+    vars:
+      apply_ptf_to_be_applied_list:
+        - {'ptf_id':'SI73543', 'product':'5770UME'}
+      apply_ptf_temp_or_perm: '*TEMP'
+      apply_ptf_delayed_option: '*NO'
+      apply_ptf_auto_ipl: '*NO'   # invalid option
+      apply_ptf_apply_all_loaded_ptfs: false
+
+  - name: Assert the returned list correct
+    ansible.builtin.assert:
+      that:
+        - apply_ptf_apply_fail_list | length == 1
+        - apply_ptf_apply_success_list == []
+
+  - name: Apply a PTF which is already applied on system - find a PTF which is *PERM applied
+    ibm.power_ibmi.ibmi_sql_query:
       sql: "SELECT PTF_IDENTIFIER, A.* FROM QSYS2.PTF_INFO A WHERE PTF_LOADED_STATUS = 'PERMANENTLY APPLIED' ORDER BY PTF_IDENTIFIER desc"
-    register: sql_query  
+    register: sql_query
 
-  - name: apply a *PERM applied PTF on system
-    include_role:    
+  - name: Apply a *PERM applied PTF on system
+    ansible.builtin.include_role:
       name: apply_ptf
     vars:
       apply_ptf_to_be_applied_list:
-        - {'ptf_id':"{{sql_query['row'][0]['PTF_IDENTIFIER']}}", 'product':"{{sql_query['row'][0]['PTF_PRODUCT_ID']}}"}
+        - {'ptf_id':"{{ sql_query['row'][0]['PTF_IDENTIFIER'] }}", 'product':"{{ sql_query['row'][0]['PTF_PRODUCT_ID'] }}"}
       apply_ptf_temp_or_perm: '*PERM'
-      apply_ptf_delayed_option: '*NO' 
+      apply_ptf_delayed_option: '*NO'
       apply_ptf_auto_ipl: false
       apply_ptf_apply_all_loaded_ptfs: false
-    when: sql_query.row_count >= 1 
+    when: sql_query.row_count >= 1
 
-  - name: assert the returned list correct
-    assert:
+  - name: Assert the returned list correct
+    ansible.builtin.assert:
       that:
         - apply_ptf_apply_fail_list | length == 1
         - apply_ptf_apply_success_list == []
-    
-  - name: apply a PTF which is not loaded on system - find a non-loaded PTF on system
-    ibmi_sql_query:
-      sql: "SELECT PTF_IDENTIFIER, A.* FROM QSYS2.PTF_INFO A WHERE PTF_LOADED_STATUS = 'NOT LOADED' ORDER BY PTF_IDENTIFIER desc"
-    register: sql_query  
 
-  - name: apply a PTF which is not loaded on system - apply a non-loaded PTF on system
-    include_role:    
+  - name: Apply a PTF which is not loaded on system - find a non-loaded PTF on system
+    ibm.power_ibmi.ibmi_sql_query:
+      sql: "SELECT PTF_IDENTIFIER, A.* FROM QSYS2.PTF_INFO A WHERE PTF_LOADED_STATUS = 'NOT LOADED' ORDER BY PTF_IDENTIFIER desc"
+    register: sql_query
+
+  - name: Apply a PTF which is not loaded on system - apply a non-loaded PTF on system
+    ansible.builtin.include_role:
       name: apply_ptf
     vars:
       apply_ptf_to_be_applied_list:
-        - {'ptf_id':"{{sql_query['row'][0]['PTF_IDENTIFIER']}}", 'product':"{{sql_query['row'][0]['PTF_PRODUCT_ID']}}"}
+        - {'ptf_id':"{{ sql_query['row'][0]['PTF_IDENTIFIER'] }}", 'product':"{{ sql_query['row'][0]['PTF_PRODUCT_ID'] }}"}
       apply_ptf_temp_or_perm: '*TEMP'
-      apply_ptf_delayed_option: '*NO' 
+      apply_ptf_delayed_option: '*NO'
       apply_ptf_auto_ipl: false
       apply_ptf_apply_all_loaded_ptfs: false
-    when: sql_query.row_count >= 1    
+    when: sql_query.row_count >= 1
 
-  - name: assert the returned list correct
-    assert:
+  - name: Assert the returned list correct
+    ansible.builtin.assert:
       that:
         - apply_ptf_apply_fail_list | length == 1
-        - apply_ptf_apply_success_list == []     
+        - apply_ptf_apply_success_list == []

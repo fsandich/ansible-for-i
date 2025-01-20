@@ -16,7 +16,7 @@ from ansible.plugins.action import ActionBase
 from ansible.utils.display import Display
 from ansible.utils.hashing import checksum, checksum_s, md5, secure_hash
 from ansible.utils.path import makedirs_safe
-__ibmi_module_version__ = "3.1.0"
+__ibmi_module_version__ = "3.2.0"
 
 ifs_dir = '/tmp/.ansible'
 display = Display()
@@ -178,7 +178,7 @@ class ActionModule(ActionBase):
                 if object_types == '*ALL' or object_types == '*FILE':
                     if (object_names.split())[0][-1] == '*':
                         module_args = {'object_name': object_names[0:-1] + '+', 'lib_name': lib_name, 'use_regex': True}
-                        module_output = self._execute_module(module_name='ibmi_object_find', module_args=module_args, task_vars=task_vars)
+                        module_output = self._execute_module(module_name='ibm.power_ibmi.ibmi_object_find', module_args=module_args, task_vars=task_vars)
                         save_result = module_output
                         if not save_result.get('failed'):
                             if len(save_result['object_list']) == 1 and save_result['object_list'][0]['OBJTYPE'] == '*FILE' \
@@ -189,7 +189,7 @@ class ActionModule(ActionBase):
                                 is_savf = True
                     else:
                         module_args = {'object_name': object_names, 'lib_name': lib_name}
-                        module_output = self._execute_module(module_name='ibmi_object_find', module_args=module_args, task_vars=task_vars)
+                        module_output = self._execute_module(module_name='ibm.power_ibmi.ibmi_object_find', module_args=module_args, task_vars=task_vars)
                         save_result = module_output
                         if not save_result.get('failed'):
                             if len(save_result['object_list']) == 1 and save_result['object_list'][0]['OBJTYPE'] == '*FILE' and \
@@ -211,14 +211,14 @@ class ActionModule(ActionBase):
                                    'target_release': target_release, 'force_save': force_save, 'joblog': True,
                                    'parameters': omitfile}
                     display.debug(f"ibm i debug: call ibmi_lib_save {module_args}")
-                    module_output = self._execute_module(module_name='ibmi_lib_save', module_args=module_args, task_vars=task_vars)
+                    module_output = self._execute_module(module_name='ibm.power_ibmi.ibmi_lib_save', module_args=module_args, task_vars=task_vars)
                 else:
                     omitfile = f'OMITOBJ(({lib_name}/{savf_name} *FILE))'
                     module_args = {'object_names': object_names, 'object_lib': lib_name, 'object_types': object_types,
                                    'savefile_name': savf_name, 'savefile_lib': lib_name, 'target_release': target_release,
                                    'force_save': force_save, 'joblog': True, 'parameters': omitfile}
                     display.debug(f"ibm i debug: call ibmi_object_save {module_args}")
-                    module_output = self._execute_module(module_name='ibmi_object_save', module_args=module_args, task_vars=task_vars)
+                    module_output = self._execute_module(module_name='ibm.power_ibmi.ibmi_object_save', module_args=module_args, task_vars=task_vars)
 
                 save_result = module_output
                 rc = save_result['rc']
@@ -236,7 +236,7 @@ class ActionModule(ActionBase):
             commandmk = f'mkdir {ifs_dir}'
             command = f'cp {savf_path} {ifs_dir}'
 
-            module_output = self._execute_module(module_name='command', module_args={'_raw_params': commandmk}, task_vars=task_vars)
+            module_output = self._execute_module(module_name='ansible.builtin.command', module_args={'_raw_params': commandmk}, task_vars=task_vars)
             save_result = module_output
             rc = save_result['rc']
             if rc != 0 and ('exists' not in save_result['stderr']):
@@ -245,7 +245,7 @@ class ActionModule(ActionBase):
                 result['rc'] = save_result['rc']
                 result['failed'] = True
                 return result
-            module_output = self._execute_module(module_name='command', module_args={'_raw_params': command}, task_vars=task_vars)
+            module_output = self._execute_module(module_name='ansible.builtin.command', module_args={'_raw_params': command}, task_vars=task_vars)
             save_result = module_output
             rc = save_result['rc']
             if rc != 0:
@@ -275,7 +275,7 @@ class ActionModule(ActionBase):
             # use slurp if permissions are lacking or another issue
             remote_data = None
             if remote_checksum in ('1', '', None):
-                slurpres = self._execute_module(module_name='slurp', module_args=dict(src=source), task_vars=task_vars)
+                slurpres = self._execute_module(module_name='ansible.builtin.slurp', module_args=dict(src=source), task_vars=task_vars)
                 if slurpres.get('failed'):
                     if (slurpres.get('msg').startswith('file not found') or remote_checksum == '1'):
                         result['msg'] = "the remote file does not exist, not transferring"
@@ -391,7 +391,7 @@ class ActionModule(ActionBase):
         finally:
             if ((backup is False and is_savf is False) or result['failed'] is True) and created is True:
                 cmd = f'QSYS/DLTOBJ OBJ({lib_name}/{savf_name}) OBJTYPE(*FILE)'
-                module_output = self._execute_module(module_name='ibmi_cl_command', module_args={'cmd': cmd}, task_vars=task_vars)
+                module_output = self._execute_module(module_name='ibm.power_ibmi.ibmi_cl_command', module_args={'cmd': cmd}, task_vars=task_vars)
                 save_result = module_output
                 rc = save_result['rc']
                 if rc != 0 and ('CPF2105' not in save_result['stderr']):
@@ -399,7 +399,7 @@ class ActionModule(ActionBase):
             if ifs_created is True:
                 cmd = f'rm {ifs_dir}/{os.path.basename(savf_path)}'
                 try:
-                    module_output = self._execute_module(module_name='command', module_args={'_raw_params': cmd}, task_vars=task_vars)
+                    module_output = self._execute_module(module_name='ansible.builtin.command', module_args={'_raw_params': cmd}, task_vars=task_vars)
                     save_result = module_output
                     rc = save_result['rc']
                     if rc != 0:

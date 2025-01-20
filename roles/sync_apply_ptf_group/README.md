@@ -14,6 +14,7 @@ ptf group's files should be in this folder. |
 | `sync_apply_ptf_group_dest`             | str           | The path that ptf group files would be transferred to. Default is "~/PTF/ptfgroup".  |
 | `sync_apply_ptf_group_delete`           | bool          | Whether or not to delete the PTF group install dir after apply. The default is True.  |
 | `sync_apply_ptf_group_ptf_omit_list`    | list          | The list of PTFs which will be omitted. The elements of the list are dict. The key of the dict should be the product ID of the fix that is omitted.  |
+| `sync_apply_ptf_group_apply_type`       | str           | Apply type for call to ibmi_fix_imgclg. Default is '*DLYALL'. |
 
 Return Variables
 --------------
